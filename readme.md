@@ -25,7 +25,7 @@ You can specify the number of access.log file(s) you want to generate, and the e
 
 _IP addresses_<br>Global addresses in the template log are obfuscated: the last triplet of an IPv4 or the last quad of an IPv6 are randomized. This provides minimal IP obfuscation while maximizing retention of other interesting properties in your IP addresses, like the geolocation of your users, commercial vs residential, etc. Non-global IPs (private, loopback, etc) are kept as-is. All generated IPs are guaranteed valid: for example, 192.168.0.0 is a network identifier and is never assigned to an interface, and 169.254.0.0/16 link-locals aren't routable, so it won't use any of those.
 
-_User Agents_<br>A basic bot-or-not check is made on all user agents in the template log. All user agents identified as bots are extracted and replayed as-is into your generated fake logs, with their real originating IPs. Real-device agents are generated from a list of the top real-world user agents in the wild, weighted by frequency of occurrence, and matching the distribution of browser, os, and desktop/mobile possibilities that are found in your template log. If your template log contains only mobile Safari UAs, all you will see in your generated logs is mobile Safari UAs. If you have 70% mobile Chrome and 30% desktop all others in your template log, you will get that. You have the ability to control what percentage of bots vs non-bot UAs you get (currently, this is hard-coded to what I use, 21.9% bots and 78.1% everything else, but that's easy to change). If you have no bots (or all bots) in your template log, you will get no bots (or all bots) in what's generated.
+_User Agents_<br>A basic bot-or-not check is made on all user agents in the template log. All user agents identified as bots are extracted and replayed as-is into your generated fake logs, with their real originating IPs. Real-device agents are generated from a list of the top real-world user agents in the wild, weighted by frequency of occurrence, and matching the distribution of browser, os, and desktop/mobile possibilities that are found in your template log. If your template log contains only mobile Safari UAs, all you will see in your generated logs is mobile Safari UAs. If you have 70% mobile Chrome and 30% desktop all others in your template log, you will get that. You have the ability to control what percentage of bots vs non-bot UAs you get (currently, this is hard-coded to what I use, 21.9% bots and 78.1% everything else, but that's easy to change). If you have no bots (or all bots) in your template log, you will get no bots (or all bots) in what's generated. It doesn't (currently) inject any bots into the generated logs that aren't present in your template log (see Future Enhancements below).
 
 ### IP/User Agent Examples:
 
@@ -50,13 +50,17 @@ You can specify the overall time distribution you want to appear in the logs, on
 
 Log files are way complicated in their semantics and consumption, meaning lots of possible enhancements:
 
-1. User sessions (in log file context, the clustering of fixed, repeating IP/UA combos) are not currently preserved from the template log file into the generated log files, and are a big question mark for a number of reasons. Still considering if and how to handle these.
+1. User sessions (in log file context, the clustering of fixed, repeating IP/UA combos) are not currently preserved from the template log file into the generated log files, and are a big question mark for a number of reasons. Still considering if and how to handle these. Copy them from the template log? Generate your own crafted request flows (/homepage.htm to /login.htm to /landingpage.htm to for the same fake session...)? This is complicated, but could be useful. Prob some machine learning opps here.
 
-2. Generation of specific properties in the log file: fake geos maybe, or specific bot UAs, or crafted request flows (/homepage.htm to /login.htm to /landingpage.htm to for the same fake session...)
+2. Generation of specific properties in the log file: fake geos (ehh maybe), or specific bot UAs that aren't in the template log (DEFINITELY), or... ;
 
-3. Other (better?) ways to obfuscate IPs that make sense and are relatively fast.
+3. Support additional (better in some cases) ways to obfuscate IPs that make sense and are relatively fast;
 
 4. Some of the code blocks could defo use some speed enhancements/refactoring. Writing the output is currently the majority of the runtime.
+
+5. ???
+
+###PRs welcome!
 
 ### Syntax and Parameters
 
