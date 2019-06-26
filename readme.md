@@ -15,7 +15,7 @@ and some other considerations.
 
 I looked for solutions but they lacked. 90% generated random data, including invalid IP addresses, or user agents that didn't match a real-world distribution of user-agents, which was important for my immediate needs (fraud research). They other 10% couldn't handle my special use cases, like preservation of partner/SEO bots and private network IPs. So, I created FLAN.
 
-###Features
+### Features
 
 FLAN generates up to 1K test access.log files of up to 1M records each, per run.
 
@@ -27,7 +27,7 @@ You can specify the number of access.log file(s) you want to generate, and the e
 
 +_User Agents_. A basic bot-or-not check is made on all user agents in the template log. All user agents identified as bots are extracted and replayed as-is into your generated fake logs, with their real originating IPs. Real-device agents are generated from a list of the top real-world user agents in the wild, weighted by frequency of occurrence, and matching the distribution of browser, os, and desktop/mobile possibilities that are found in your template log. If your template log contains only mobile Safari UAs, all you will see in your generated logs is mobile Safari UAs. If you have 70% mobile Chrome and 30% desktop all others in your template log, you will get that. You have the ability to control what percentage of bots vs non-bot UAs you get (currently, this is hard-coded to what I use, 21.9% bots and 78.1% everything else), but if you have no bots (or all bots) in your template log, you will get no bots (or all bots) in what's generated.
 
-###IP/User Agent Examples:
+### IP/User Agent Examples:
 
 1. One template log entry with IP 123.4.5.6, Chromebook Mac UA
 Expanded to one or more generated entries with IPs in the range 123.4.5.0/24 (bc it's global) + Chromebook Mac UAs
@@ -38,7 +38,7 @@ Expanded to one or more generated entries with IP 10.1.2.3 (bc it's private) + t
 Googlebot stays Googlebot: same UA, IPs
 
 
-###Time Distribution
+### Time Distribution
 
 You can specify the overall time distribution you want to appear in the logs, one of:
 
