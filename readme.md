@@ -54,7 +54,9 @@ Log files are way complicated in their semantics and consumption, meaning lots o
 
 2. Generation of specific properties in the log file: fake geos maybe, or specific bot UAs, or crafted request flows (/homepage.htm to /login.htm to /landingpage.htm to for the same fake session...)
 
-3. ???
+3. Other (better?) ways to obfuscate IPs that make sense and are relatively fast.
+
+4. Some of the code blocks could defo use some speed enhancements/refactoring. Writing the output is currently the majority of the runtime.
 
 ### Syntax and Parameters
 
