@@ -555,7 +555,7 @@ def main():
     # command-line parsing
     cmdline = OptionParser(usage="usage: %prog [options] examplelogfile outputdirectory",
                            description="Create one or more Nginx access.log(.#) file(s) from a single real-world example access.log file.")
-    cmdline.add_option("-a", "--abort",
+    cmdline.add_option("-a",
                        action="store_true",
                        help="If specified, abort on the first (meaning, 'any and every') non-parsable log line found. "
                             "If not specified (the default), skip all non-parsable log lines but process the rest of the entries.")
@@ -578,7 +578,7 @@ def main():
                       dest="format",
                       default='$remote_addr - $remote_user [$time_local] \"$request\" $status $body_bytes_sent \"$http_referer\" \"$http_user_agent\"',
                       help='Format of the long entry line. Default is: \'$remote_addr - $remote_user [$time_local] \"$request\" $status $body_bytes_sent \"$http_referer\" \"$http_user_agent\"\'', )
-    cmdline.add_option("-k", "--quote",
+    cmdline.add_option("-k",
                       action="store_true",
                       help="If specified, add single quotes to the beginning and end of every generated log entry line. Default=no quotes added.", )
     cmdline.add_option("-l", "--linedelimiter",
@@ -591,11 +591,11 @@ def main():
                       dest="files",
                       default="1",
                       help="Number of access.log(.#) file(s) to output. Default=1, min=1, max=1000. Example: '-n 4' creates access.log, access.log.1, access.log.2, and access.log.3 in the output directory.", )
-    cmdline.add_option("-o", "--overwrite",
+    cmdline.add_option("-o",
                        action="store_true",
                        help="If specified, delete any generated log files if they already exist. "
                             "If not specified (the default), exit with an error if any log file to be generated already exists.")
-    cmdline.add_option("-q", "--quiet",
+    cmdline.add_option("-q",
                        action="store_true",
                        help="Basho-like stdout. Default=Proust-like stdout.")
     cmdline.add_option("-r", "--records",
@@ -612,7 +612,7 @@ def main():
                       dest="timeformat",
                       default="%-d/%b/%Y:%H:%M:%S",
                       help="Timestamp format to use in the generated log file(s), EXCLUDING TIMEZONE (see -z parameter), in Python strftime format (see http://strftime.org/). Default='%-d/%b/%Y:%H:%M:%S'", )
-    cmdline.add_option("-v", "--version",
+    cmdline.add_option("-v",
                        action="store_true",
                        help="Print version and exit.")
     tz = datetime.datetime.now(timezone.utc).astimezone().strftime('%z')
