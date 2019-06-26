@@ -35,7 +35,6 @@ _User Agents_<br>A basic bot-or-not check is made on all user agents in the temp
 
 3. Googlebot stays Googlebot: same UA, IPs
 
-
 ### Time Distribution
 
 You can specify the overall time distribution you want to appear in the logs, one of:
