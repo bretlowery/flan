@@ -557,6 +557,7 @@ def main():
                            description="Create one or more Nginx access.log(.#) file(s) from a single real-world example access.log file.")
     cmdline.add_option("-a",
                        action="store_true",
+                       dest="abort",
                        help="If specified, abort on the first (meaning, 'any and every') non-parsable log line found. "
                             "If not specified (the default), skip all non-parsable log lines but process the rest of the entries.")
     cmdline.add_option("-b", "--bots",
@@ -580,6 +581,7 @@ def main():
                       help='Format of the long entry line. Default is: \'$remote_addr - $remote_user [$time_local] \"$request\" $status $body_bytes_sent \"$http_referer\" \"$http_user_agent\"\'', )
     cmdline.add_option("-k",
                       action="store_true",
+                      dest="quote",
                       help="If specified, add single quotes to the beginning and end of every generated log entry line. Default=no quotes added.", )
     cmdline.add_option("-l", "--linedelimiter",
                       action="store",
@@ -593,10 +595,12 @@ def main():
                       help="Number of access.log(.#) file(s) to output. Default=1, min=1, max=1000. Example: '-n 4' creates access.log, access.log.1, access.log.2, and access.log.3 in the output directory.", )
     cmdline.add_option("-o",
                        action="store_true",
+                       dest="overwrite",
                        help="If specified, delete any generated log files if they already exist. "
                             "If not specified (the default), exit with an error if any log file to be generated already exists.")
     cmdline.add_option("-q",
                        action="store_true",
+                       dest="quiet",
                        help="Basho-like stdout. Default=Proust-like stdout.")
     cmdline.add_option("-r", "--records",
                       action="store",
@@ -614,6 +618,7 @@ def main():
                       help="Timestamp format to use in the generated log file(s), EXCLUDING TIMEZONE (see -z parameter), in Python strftime format (see http://strftime.org/). Default='%-d/%b/%Y:%H:%M:%S'", )
     cmdline.add_option("-v",
                        action="store_true",
+                       dest="version",
                        help="Print version and exit.")
     tz = datetime.datetime.now(timezone.utc).astimezone().strftime('%z')
     cmdline.add_option("-z", "--timezone",
