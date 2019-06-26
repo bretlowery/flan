@@ -55,7 +55,7 @@ Specifies a random (even) distribution be used instead. You may want to use this
 flan.py [arguments] template.log outputdir
 ```
 
-| Argument            | Definition                             | Default       |
+| Commandline Argument            | Definition                             | Default       |
 | ------------------- |:---------------------------------------| ------------- |
 | -a,<br>--abort    | If specified, halt on any (i.e. the first) unparseable entries in your template log. | Skip any&all unparseable entries |
 | -b,<br>--bots     | Include, I, True, T, Yes, Y = Include bot user agents in the generated output. Exclude, E, X, False, F, No, N=don't generate entries with bot user agents. Only, O=ONLY generate entries with bot UAs. | Include |
