@@ -60,7 +60,9 @@ Log files are way complicated in their semantics and consumption, meaning lots o
 
 5. ???
 
-<span style="color: red;">### PRs welcome!</span>
+<span style="color: red;">
+### PRs welcome!
+</span>
 
 ### Syntax and Parameters
 
