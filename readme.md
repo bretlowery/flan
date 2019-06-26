@@ -23,9 +23,9 @@ To ensure your fake logs look as semantically real as your production ones, it r
 
 You can specify the number of access.log file(s) you want to generate, and the entries per file. Access logs are created using the standard suffixes access.log, access.log.1, access.log.2, etc. You can specify a start and end datetime for your log entries.
 
-+_IP addresses_. Global addresses in the template log are obfuscated: the last triplet of an IPv4 or the last quad of an IPv6 are randomized. This provides minimal IP obfuscation while maximizing retention of other interesting properties in your IP addresses, like the geolocation of your users, commercial vs residential, etc. Non-global IPs (private, loopback, etc) are kept as-is. All generated IPs are guaranteed valid: 192.168.0.0 is a network identifier and is never assigned to an interface, for example, and 169.254.0.0/16 link-locals aren't routable.
+_IP addresses_<br>Global addresses in the template log are obfuscated: the last triplet of an IPv4 or the last quad of an IPv6 are randomized. This provides minimal IP obfuscation while maximizing retention of other interesting properties in your IP addresses, like the geolocation of your users, commercial vs residential, etc. Non-global IPs (private, loopback, etc) are kept as-is. All generated IPs are guaranteed valid: 192.168.0.0 is a network identifier and is never assigned to an interface, for example, and 169.254.0.0/16 link-locals aren't routable.
 
-+_User Agents_. A basic bot-or-not check is made on all user agents in the template log. All user agents identified as bots are extracted and replayed as-is into your generated fake logs, with their real originating IPs. Real-device agents are generated from a list of the top real-world user agents in the wild, weighted by frequency of occurrence, and matching the distribution of browser, os, and desktop/mobile possibilities that are found in your template log. If your template log contains only mobile Safari UAs, all you will see in your generated logs is mobile Safari UAs. If you have 70% mobile Chrome and 30% desktop all others in your template log, you will get that. You have the ability to control what percentage of bots vs non-bot UAs you get (currently, this is hard-coded to what I use, 21.9% bots and 78.1% everything else), but if you have no bots (or all bots) in your template log, you will get no bots (or all bots) in what's generated.
+_User Agents_<br>A basic bot-or-not check is made on all user agents in the template log. All user agents identified as bots are extracted and replayed as-is into your generated fake logs, with their real originating IPs. Real-device agents are generated from a list of the top real-world user agents in the wild, weighted by frequency of occurrence, and matching the distribution of browser, os, and desktop/mobile possibilities that are found in your template log. If your template log contains only mobile Safari UAs, all you will see in your generated logs is mobile Safari UAs. If you have 70% mobile Chrome and 30% desktop all others in your template log, you will get that. You have the ability to control what percentage of bots vs non-bot UAs you get (currently, this is hard-coded to what I use, 21.9% bots and 78.1% everything else), but if you have no bots (or all bots) in your template log, you will get no bots (or all bots) in what's generated.
 
 ### IP/User Agent Examples:
 
@@ -35,18 +35,16 @@ Expanded to one or more generated entries with IPs in the range 123.4.5.0/24 (bc
 2. One template log entry with IP 10.1.2.3, Linux, curl UA
 Expanded to one or more generated entries with IP 10.1.2.3 (bc it's private) + the same Linux curl UA
 
-Googlebot stays Googlebot: same UA, IPs
+3. Googlebot stays Googlebot: same UA, IPs
 
 
 ### Time Distribution
 
 You can specify the overall time distribution you want to appear in the logs, one of:
 
-*Normal*
-Specifies that a normal distribution of entries should be generated, centered around the midpoint time-wise between your start and end datetimes. This is the default as most real-world web access follows natural wake/sleep cycles.
+*Normal*<br>Specifies that a normal distribution of entries should be generated, centered around the midpoint time-wise between your start and end datetimes. This is the default as most real-world web access follows natural wake/sleep cycles.
 
-*Even*
-Specifies a random (even) distribution be used instead. You may want to use this if you are an international company and no one time zone wake/sleep cycle dominates your site/app usage patterns.
+*Even*<br>Specifies a random (even) distribution be used instead. You may want to use this if you are an international company and no one time zone wake/sleep cycle dominates your site/app usage patterns.
 
 
 ### Syntax and Parameters
