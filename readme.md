@@ -81,6 +81,7 @@ flan.py [arguments] template.log outputdir
 | -d,<br>--distribution | Normal=use a normal distribution centered midway between start and end datetimes for the time dimension. Random=use a random ("shotgun blast") distribution. | Normal |
 | -e,<br>--end | Specifies the end datetime to use for the generated log entries. All log entries will have a timestamp on or before this date. | Midnight tomorrow local/server time |
 | -f,<br>--format | Your Apache/NGINX log entry format string. | '$remote_addr - $remote_user [$time_local] \"$request\" $status $body_bytes_sent \"$http_referer\" \"$http_user_agent\"' |
+| -h,<br>--help | Print out these options on the commandline. | |
 | -k,<br>--quote | If specified, add single quotes to the beginning and end of every generated log entry line. | Do not add quotes. |
 | -l,<br>--linedelimiter | Line delimiter to append to all generated log entries, one of: [None, No, False, N, F], [Comma, C], [Tab, T], CR, LF, or CRLF.| CRLF |
 | -n,<br>--numfiles | The total number of access.log files to generate. Min=1, Max=1000. Example: '-n 4' creates access.log, access.log.1, access.log.2, and access.log.3 in the output directory. | 1 |
@@ -89,7 +90,7 @@ flan.py [arguments] template.log outputdir
 | -r,<br>--records | The number of entries to write per generated log file. Min=1, Max=1M. | 10,000 |
 | -s,<br>--start | Specifies the start datetime to use for the generated log entries. All log entries will have a timestamp on or after this date. | Midnight today local/server time |
 | -t,<br>--timeformat | Timestamp format to use in the generated log file(s), EXCLUDING TIMEZONE (see -z parameter), in Python strftime format (see http://strftime.org/). | '%-d/%b/%Y:%H:%M:%S' |
-| -v,<br>--version | Print version number and immediately exit. | Actually do something. |
+| -v,<br>--version | Print version number and immediately exit. | |
 | -z,<br>--timezone | Timezone offset in (+/-)HHMM format to append to timestamps in the generated log file(s), or pass '' to specify no timezone. | Your current local/server timezone. |
 
 
