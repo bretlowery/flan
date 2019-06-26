@@ -58,7 +58,13 @@ Log files are way complicated in their semantics and consumption, meaning lots o
 
 4. Some of the code blocks could defo use some speed enhancements/refactoring. Writing the output is currently the majority of the runtime.
 
-5. ???
+5. Other time distributions??? Heavy-tailed Poisson to model unlikely events/DDoS, discrete/degenerate distributions to emulate API/RESTful activity, etc. This seems like a likely mid-term enhancement. For considerations, see: 
+<br/>https://en.wikipedia.org/wiki/Web_traffic 
+<br/>https://www.nngroup.com/articles/traffic-log-patterns
+<br/>https://en.wikipedia.org/wiki/Traffic_generation_model
+<br>https://en.wikipedia.org/wiki/List_of_probability_distributions
+
+6. ???
 
 ### PRs welcome!
 
@@ -72,7 +78,7 @@ flan.py [arguments] template.log outputdir
 | ------------------- |:---------------------------------------| ------------- |
 | -a,<br>--abort    | If specified, halt on any (i.e. the first) unparseable entries in your template log. | Skip any&all unparseable entries |
 | -b,<br>--bots     | Include, I, True, T, Yes, Y = Include bot user agents in the generated output. Exclude, E, X, False, F, No, N=don't generate entries with bot user agents. Only, O=ONLY generate entries with bot UAs. | Include |
-| -d,<br>--distribution | Normal=use a normal distribution centered midway between start and end datetimes for the time dimension. Even=use an even (random) distribution. | Normal |
+| -d,<br>--distribution | Normal=use a normal distribution centered midway between start and end datetimes for the time dimension. Random=use a random ("shotgun blast") distribution. | Normal |
 | -e,<br>--end | Specifies the end datetime to use for the generated log entries. All log entries will have a timestamp on or before this date. | Midnight tomorrow local/server time |
 | -f,<br>--format | Your Apache/NGINX log entry format string. | '$remote_addr - $remote_user [$time_local] \"$request\" $status $body_bytes_sent \"$http_referer\" \"$http_user_agent\"' |
 | -k,<br>--quote | If specified, add single quotes to the beginning and end of every generated log entry line. | Do not add quotes. |

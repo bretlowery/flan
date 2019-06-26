@@ -10,7 +10,6 @@ import re
 import json
 import user_agents
 import random
-# noinspection PyCompatibility
 import ipaddress
 import string
 import numpy as np
@@ -245,7 +244,7 @@ def verify_input(options, cmdline):
     else:
         bots = "Y"
 
-    # 1 = even
+    # 1 = random
     # 2 = normal
     if options.distribution.strip().lower() == "normal":
         disttype = 2
@@ -462,7 +461,7 @@ def make_distribution(disttype, f, r, start_dt, end_dt):
                              else start_dt + datetime.timedelta(seconds=random.randint(0, seconds))
                              for val in normal_distribution]
     else:
-        # even dist
+        # random dist
         time_distribution = [start_dt + datetime.timedelta(seconds=int(val)) for val in np.random.randint(seconds, size=totwrite)]
     time_distribution.sort()  # chronological order
     return totwrite, time_distribution, aps
@@ -569,7 +568,7 @@ def main():
                        action="store",
                        dest="distribution",
                        default="normal",
-                       help="Specifies the distribution of the generated fake log data between the start and end dates, one of: even (distribute log entries evenly between start and end dates), normal (distribute using a normal distribution with the peak in the middle of the start/end range). Default=normal.")
+                       help="Specifies the distribution of the generated fake log data between the start and end dates, one of: random (distribute log entries randomly between start and end dates), normal (distribute using a normal distribution with the peak in the middle of the start/end range). Default=normal.")
     cmdline.add_option("-e", "--end",
                       action="store",
                       dest="end_dt",
