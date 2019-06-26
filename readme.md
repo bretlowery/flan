@@ -29,11 +29,9 @@ _User Agents_<br>A basic bot-or-not check is made on all user agents in the temp
 
 ### IP/User Agent Examples:
 
-1. One template log entry with IP 123.4.5.6, Chromebook Mac UA
-Expanded to one or more generated entries with IPs in the range 123.4.5.0/24 (bc it's global) + Chromebook Mac UAs
+1. One template log entry with IP 123.4.5.6, Chromebook Mac UA is expanded to one or more generated entries with IPs in the range 123.4.5.0/24 (bc it's global) + Chromebook Mac UAs
 
-2. One template log entry with IP 10.1.2.3, Linux, curl UA
-Expanded to one or more generated entries with IP 10.1.2.3 (bc it's private) + the same Linux curl UA
+2. One template log entry with IP 10.1.2.3, Linux, curl UA is expanded to one or more generated entries with IP 10.1.2.3 (bc it's private) + the same Linux curl UA
 
 3. Googlebot stays Googlebot: same UA, IPs
 
