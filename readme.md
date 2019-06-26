@@ -46,6 +46,16 @@ You can specify the overall time distribution you want to appear in the logs, on
 ### THEREFORE...
 > The total number of entries generated is equal to the -n parameter value TIMES the -r parameter value, spread in the selected distribution across the timeframe specified between the -s and -e parameter start and end datetimes.
 
+### Future Enhancements
+
+Log files are way complicated in their semantics and consumption, meaning lots of possible enhancements:
+
+1. User sessions (in log file context, the clustering of fixed, repeating IP/UA combos) are not currently preserved from the template log file into the generated log files, and are a big question mark for a number of reasons. Still considering if and how to handle these.
+
+2. Generation of specific properties in the log file: fake geos maybe, or specific bot UAs, or crafted request flows (/homepage.htm to /login.htm to /landingpage.htm to for the same fake session...)
+
+3. ???
+
 ### Syntax and Parameters
 
 ```
