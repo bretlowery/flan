@@ -86,7 +86,7 @@ flan.py [arguments] template.log outputdir
 | -l,<br>--linedelimiter | Line delimiter to append to all generated log entries, one of: [None, No, False, N, F], [Comma, C], [Tab, T], CR, LF, or CRLF.| CRLF |
 | -n,<br>--numfiles | The total number of access.log files to generate. Min=1, Max=1000. Example: '-n 4' creates access.log, access.log.1, access.log.2, and access.log.3 in the output directory. | 1 |
 | -o,<br>--overwrite | Overwrite any generated log file(s) that already exist. This check is made before writing anything. | Error if any already exist, leaving any & all of them unchanged. |
-| -q,<br>--quiet | Don't print status messages to stdout. | Be verbose. |
+| -q,<br>--quiet | Basho-like stdout. | Proust-like stdout. |
 | -r,<br>--records | The number of entries to write per generated log file. Min=1, Max=1M. | 10,000 |
 | -s,<br>--start | Specifies the start datetime to use for the generated log entries. All log entries will have a timestamp on or after this date. | Midnight today local/server time |
 | -t,<br>--timeformat | Timestamp format to use in the generated log file(s), EXCLUDING TIMEZONE (see -z parameter), in Python strftime format (see http://strftime.org/). | '%-d/%b/%Y:%H:%M:%S' |
