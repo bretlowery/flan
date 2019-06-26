@@ -44,8 +44,8 @@ You can specify the overall time distribution you want to appear in the logs, on
 
 *Even*<br>Specifies a random (even) distribution be used instead. You may want to use this if you are an international company and no one time zone wake/sleep cycle dominates your site/app usage patterns.
 
+### THEREFORE...
 > The total number of entries generated is equal to the -n parameter value TIMES the -r parameter value, spread in the selected distribution across the timeframe specified between the -s and -e parameter start and end datetimes.
-
 
 ### Syntax and Parameters
 
