@@ -8,7 +8,7 @@ I needed a way to test some systems that cosume access.log entries in an environ
 2. Production access.logs were protected with limited access for obvious reasons;
 3. Logs were hard to acquire (multiple approvals required every time; long turnaround times; no direct, easy paths between production and dev/test environments, etc);
 4. Logs had to be scrubbed once acquired, for (debateably) PII in the form of global IP addresses, and global IP address + HTTP user-agent combinations;
-5. Some data needed to be tested in the test environment: partners, SEO, etc with certain IPs, CIDRs, and/or user-agents;
+5. Some specific use cases needed to be tested in the test environment: partner, SEO, etc. traffic with certain IPs, CIDRs, and/or user-agents;
 6. Some private network access on 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 needed to be tested as-is without being changed.
 
 and some other considerations.
