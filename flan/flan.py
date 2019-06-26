@@ -597,7 +597,7 @@ def main():
                             "If not specified (the default), exit with an error if any log file to be generated already exists.")
     cmdline.add_option("-q", "--quiet",
                        action="store_true",
-                       help="Don't print messages to stdout.")
+                       help="Basho-like stdout. Default=Proust-like stdout.")
     cmdline.add_option("-r", "--records",
                       action="store",
                       dest="records",
