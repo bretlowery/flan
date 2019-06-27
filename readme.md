@@ -17,7 +17,7 @@ I looked for solutions but they lacked. 90% generated random data, including inv
 
 ### Features
 
-FLAN generates up to 1K test access.log files of up to 1M records each, per run.
+FLAN generates up to 1K test access.log files of up to 1M records each, per run. On my Mac, it can generate 200K records in about 30 seconds in verbose mode, so it's way way fast on any ol' EC2 or GCE server including the free tier stuff.
 
 To ensure your fake logs look as semantically real as your production ones, it reads a "template" access.log from a real production system that you provide (hereinafter referred to as the "template log"). It doesn't matter how many records the template log contains, but the longer it is the more realistic your generated fake logs will be. You template log can be bigger than your generated log file(s), or vice versa.
 
@@ -48,23 +48,21 @@ You can specify the overall time distribution you want to appear in the logs, on
 
 ### Future Enhancements
 
-Log files are way complicated in their semantics and consumption, meaning lots of possible enhancements:
+Log files have complex semantics and multiple consumption possibilities. Possible future enhancements:
 
-1. User sessions (in log file context, the clustering of fixed, repeating IP/UA combos) are not currently preserved from the template log file into the generated log files, and are a big question mark for a number of reasons. Still considering if and how to handle these. Copy them from the template log? Generate your own crafted request flows (/homepage.htm to /login.htm to /landingpage.htm to for the same fake session...)? This is complicated, but could be useful. Prob some machine learning opps here.
+1. Including bots not in the template log from a list of bots commonly seen in the wild by frequency commonly seen;
 
-2. Generation of specific properties in the log file: fake geos (ehh maybe), or specific bot UAs that aren't in the template log (DEFINITELY), or... ;
+2. Preservation and/or generation of user "sessions" (in the context of an access.log, really just the clustering of repeated, order-significant IP/UA combos following a semantically sound series of request paths) in the generated logs;
 
-3. Support additional (better in some cases) ways to obfuscate IPs that make sense and are relatively fast;
+3. Usage of specific CIDRs, ASNUM blocks, IP ranges;
 
-4. Some of the code blocks could defo use some speed enhancements/refactoring. Writing the output is currently the majority of the runtime.
+4. Support additional (and better for some use cases) ways to obfuscate IPs that make sense and are relatively fast;
 
-5. Other time distributions??? Heavy-tailed Poisson to model unlikely events/DDoS, discrete/degenerate distributions to emulate API/RESTful activity, etc. This seems like a likely mid-term enhancement. For considerations, see: 
+5. Support other time distributions for specific use cases. Examples: heavy-tailed Poisson to model unlikely events/DDoS, discrete/degenerate distributions to emulate API/RESTful activity, etc. For considerations, see: 
 <br/>https://en.wikipedia.org/wiki/Web_traffic 
 <br/>https://www.nngroup.com/articles/traffic-log-patterns
 <br/>https://en.wikipedia.org/wiki/Traffic_generation_model
 <br>https://en.wikipedia.org/wiki/List_of_probability_distributions
-
-6. ???
 
 ### PRs welcome!
 
