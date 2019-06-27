@@ -54,11 +54,13 @@ Log files have complex semantics and multiple consumption possibilities. Possibl
 
 2. Preservation and/or generation of user "sessions" (in the context of an access.log, really just the clustering of repeated, order-significant IP/UA combos following a semantically sound series of request paths) in the generated logs;
 
-3. Ability to specify the generation of specific CIDRs, ASNUM blocks, IP ranges, or inject custom data into the user-agent field for downstream flagging;
+3. Ability to specify the generation of specific CIDRs, ASNUM blocks, IP ranges, etc.;
 
-4. Support additional (and better for some use cases) ways to obfuscate IPs that make sense and are relatively fast;
+4. Ability to inject custom data into the user-agent field for downstream flagging/detection;
 
-5. Support other time distributions for specific use cases. Examples: heavy-tailed Poisson to model unlikely events/DDoS, discrete/degenerate distributions to emulate API/RESTful activity, etc. For considerations, see: 
+5. Support additional (and better for some use cases) ways to obfuscate IPs that make sense and are relatively fast;
+
+6. Support other time distributions for specific use cases. Examples: heavy-tailed Poisson to model unlikely events/DDoS, discrete/degenerate distributions to emulate API/RESTful activity, etc. For considerations, see: 
 <br/>https://en.wikipedia.org/wiki/Web_traffic 
 <br/>https://www.nngroup.com/articles/traffic-log-patterns
 <br/>https://en.wikipedia.org/wiki/Traffic_generation_model
