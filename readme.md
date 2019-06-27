@@ -54,7 +54,7 @@ Log files have complex semantics and multiple consumption possibilities. Possibl
 
 2. Preservation and/or generation of user "sessions" (in the context of an access.log, really just the clustering of repeated, order-significant IP/UA combos following a semantically sound series of request paths) in the generated logs;
 
-3. Usage of specific CIDRs, ASNUM blocks, IP ranges;
+3. Ability to specify the generation of specific CIDRs, ASNUM blocks, IP ranges, or inject custom data into the user-agent field for downstream flagging;
 
 4. Support additional (and better for some use cases) ways to obfuscate IPs that make sense and are relatively fast;
 
