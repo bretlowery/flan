@@ -230,19 +230,21 @@ def verify_input(options, cmdline):
     if not end_dt:
         end_dt = datetime.datetime.combine(datetime.date.today() + datetime.timedelta(days=1), datetime.datetime.min.time())
 
-    bots = options.bots.strip().upper()
-    if bots:
-        if bots in 'INCLUDE,I,TRUE,T,YES,Y,1':
-            bots = "Y"
-        elif bots in 'EXCLUDE,E,X,FALSE,F,NO,N,0':
-            bots = "N"
-        elif bots in 'ONLY,O':
-            bots = "O"
-        else:
-            cmdline.error("the --bots/-b value if specified should be one of: include,i,true,t,yes,y,1,0,exclude,e,x,false,f,no,n,0,only, or o.")
+    botfilter = options.botfilter.strip().lower()
+    if botfilter:
+        if botfilter not in ("all", "seen", "unseen"):
+            cmdline.error("the -b/--botfilter value if specified should be one of: 'all', 'seen', or 'unseen'.")
             exit(1)
     else:
-        bots = "Y"
+        botfilter = "seen"
+
+    uafilter = options.uafilter.strip().lower()
+    if uafilter:
+        if uafilter not in ("all", "bots", "nobots"):
+            cmdline.error("the -u/--uafilter value if specified should be one of: 'all', 'bots', or 'nobots'.")
+            exit(1)
+    else:
+        uafilter = "all"
 
     # 1 = random
     # 2 = normal
@@ -271,7 +273,7 @@ def verify_input(options, cmdline):
         else:
             print("-a not specified; unparseable log entries will be skipped.")
 
-    return f, r, start_dt, end_dt, bots, disttype, delim
+    return f, r, start_dt, end_dt, botfilter, uafilter, disttype, delim
 
 
 def get_outputfile(i, outputdir):
@@ -351,7 +353,22 @@ def assign_ua(explodeduas):
     return explodeduas[random.randint(0, len(explodeduas)-1)]
 
 
-def parse_log(contents, options, cmdline, botflag):
+def parse_log(contents, options, cmdline, botfilter, uafilter):
+
+    def _load_bot_json():
+        blist = []
+        try:
+            jf = os.path.join(os.path.dirname(__file__), 'user-agents.json')
+            with open(jf) as json_file:
+                uajson = json.load(json_file)
+            for ua in uajson:
+                if "instances" in ua:
+                    if len(ua["instances"]) > 0:
+                        blist = blist + ua["instances"]
+        except:
+            blist = None
+            pass
+        return blist
 
     def _get_loglineregex(fmt):
         patterns = {}
@@ -400,6 +417,9 @@ def parse_log(contents, options, cmdline, botflag):
     earliest_ts = None
     latest_ts = None
     botlist = []
+    if uafilter != "nobots" and botfilter != "seen":
+        botlist = _load_bot_json()
+
     lineregex = _get_loglineregex(options.format)
 
     for entry in contents:
@@ -414,16 +434,16 @@ def parse_log(contents, options, cmdline, botflag):
         if 'http_user_agent' in keys:
             parsed_line["_ua"] = ua2struct(parsed_line["http_user_agent"])
             if parsed_line["_ua"].is_bot:
-                if botflag != "N":
+                if botfilter != "unseen" and uafilter != "nobots":
                     botlist.append(parsed_line["http_user_agent"])
                     parsed_line["_isbot"] = True
                 else:
                     if not options.quiet:
-                        print('Bots excluded by -b/--bots setting; skipping bot found on line %d...' % totread)
+                        print('Skipping bot [excluded by -b/-u settings] found on line %d...' % totread)
                     continue
-            elif botflag == "O":
+            elif uafilter == "bots":
                 if not options.quiet:
-                    print('Only bots included by -b/--bots setting; skipping non-bot found on line %d...' % totread)
+                    print('Skipping non-bot [excluded by -u setting] found on line %d...' % totread)
                 continue
             else:
                 parsed_line["_isbot"] = False
@@ -457,6 +477,9 @@ def parse_log(contents, options, cmdline, botflag):
     if not earliest_ts and not latest_ts:
         cmdline.error("no timestamps found in the log file provided. Timestamps are required.")
         exit(0)
+
+    if botlist:
+        botlist = list(dict.fromkeys(botlist)) # remove dupes
 
     return parsed, totread, totok, earliest_ts, latest_ts, botlist
 
@@ -579,11 +602,11 @@ def main():
                        dest="abort",
                        help="If specified, abort on the first (meaning, 'any and every') non-parsable log line found. "
                             "If not specified (the default), skip all non-parsable log lines but process the rest of the entries.")
-    cmdline.add_option("-b", "--bots",
+    cmdline.add_option("-b", "--botfilter",
                        action="store",
-                       dest="bots",
-                       default="include",
-                       help="include,i,true,t,yes,y,1=include bot useragents; exclude,e,x,false,f,no,n,0=exclude bot user agents; only,o=ONLY include bot user agents. Default=include.")
+                       dest="botfilter",
+                       default="seen",
+                       help="Specifies which bots if any to include in the generated log files (iff -u is set to 'all' or 'bots'), one of: all=include all bots from both the template log and user-agents.json in the fake log entries, seen=ONLY include bots found in the template log file in the fake log entries, unseen=ONLY include bots found in the user-agents.json in the fake log entries. Default=seen.")
     cmdline.add_option("-d", "--distribution",
                        action="store",
                        dest="distribution",
@@ -592,7 +615,7 @@ def main():
     cmdline.add_option("-e", "--end",
                       action="store",
                       dest="end_dt",
-                      help='Latest datetime YYYY-MM-DD HH24:MI:SS to provide in the generated log files. Defaults to midnight tomorrow.' )
+                      help='Latest datetime YYYY-MM-DD HH24:MI:SS to provide in the generated log files. Defaults to midnight tomorrow.')
     cmdline.add_option("-f", "--format",
                       action="store",
                       dest="format",
@@ -635,6 +658,11 @@ def main():
                       dest="timeformat",
                       default="%-d/%b/%Y:%H:%M:%S",
                       help="Timestamp format to use in the generated log file(s), EXCLUDING TIMEZONE (see -z parameter), in Python strftime format (see http://strftime.org/). Default='%-d/%b/%Y:%H:%M:%S'", )
+    cmdline.add_option("-u", "--uafilter",
+                       action="store",
+                       dest="uafilter",
+                       default="all",
+                       help="FIlter generate log entries by UA, one of: all=use BOTH bot and non-bot UAs and template log entries with bot/non-bot UAs when creating the generated log entries, bots=use ONLY bot UAs and template log entries with bot UAs when creating the generated log entries, nobots=use ONLY non-bot UAs and template log entries with non-bot UAs when creating the generated log entries. Default=all.")
     cmdline.add_option("-v",
                        action="store_true",
                        dest="version",
@@ -666,7 +694,7 @@ def main():
     #
     contents = get_input(args[0], cmdline)
     outputdir = verify_output(args[1], cmdline)
-    totfiles, totperfile, start_dt, end_dt, botflag, disttype, delim = verify_input(options, cmdline)
+    totfiles, totperfile, start_dt, end_dt, botfilter, uafilter, disttype, delim = verify_input(options, cmdline)
     if not options.overwrite:
         if output_exists(totfiles, outputdir):
             cmdline.error("one or more target file(s) exist, and --overwrite was not specified.")
@@ -677,7 +705,7 @@ def main():
     #
     # Parse-and-store
     #
-    parsed, totread, totok, earliest_ts, latest_ts, botlist = parse_log(contents, options, cmdline, botflag)
+    parsed, totread, totok, earliest_ts, latest_ts, botlist = parse_log(contents, options, cmdline, botfilter, uafilter)
 
     #
     # Build the time slice distribution to attribute fake log entries to
