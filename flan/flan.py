@@ -187,7 +187,7 @@ def get_input(templatelogfile, cmdline):
         cmdline.error("ERROR trying to read the example log file: %s", str(e))
         exit(1)
     if not contents:
-        cmdline.error("ERROR, the example access log provided is empty.")
+        cmdline.error("the example access log provided is empty.")
         exit(1)
     return contents
 
@@ -198,21 +198,21 @@ def verify_input(options, cmdline):
         f = int(options.files)
         f = 0 if f < 1 or f > 1000 else f
     if f == 0:
-        cmdline.error("ERROR, the number of files to generate must be between 1 and 1000.")
+        cmdline.error("the number of files to generate must be between 1 and 1000.")
         exit(1)
     r = 0
     if options.records.isdigit():
         r = int(options.records)
         r = 0 if r < 1 or r > 1000000 else r
     if r == 0:
-        cmdline.error("ERROR, the number of records to generate per file must be between 1 and 1000000.")
+        cmdline.error("the number of records to generate per file must be between 1 and 1000000.")
         exit(1)
 
     chk = datetime.datetime.now()
     try:
         x = chk.strftime(options.timeformat)
     except:
-        cmdline.error("ERROR, the --timestamp format must be a valid Python strftime format. See http://strftime.com.")
+        cmdline.error("the --timestamp format must be a valid Python strftime format. See http://strftime.com.")
         exit(1)
 
     start_dt = None
@@ -239,7 +239,7 @@ def verify_input(options, cmdline):
         elif bots in 'ONLY,O':
             bots = "O"
         else:
-            cmdline.error("ERROR, the --bots/-b value if specified should be one of: include,i,true,t,yes,y,1,0,exclude,e,x,false,f,no,n,0,only, or o.")
+            cmdline.error("the --bots/-b value if specified should be one of: include,i,true,t,yes,y,1,0,exclude,e,x,false,f,no,n,0,only, or o.")
             exit(1)
     else:
         bots = "Y"
@@ -262,7 +262,7 @@ def verify_input(options, cmdline):
     elif delim in ['comma', 'c']:
         delim = "c"
     elif delim not in ['cr', 'lf', 'crlf']:
-        cmdline.error("ERROR, the --linedelimiter/-l value if specified should be one of: none, no, n, false, f, tab, t, comma, c, cr, lf, or crlf.")
+        cmdline.error("the --linedelimiter/-l value if specified should be one of: none, no, n, false, f, tab, t, comma, c, cr, lf, or crlf.")
         exit(1)
 
     if not options.quiet:
@@ -296,12 +296,12 @@ def verify_output(output, cmdline):
         output = output.strip()
         if os.path.exists(output):
             if os.path.isfile(output):
-                cmdline.error("ERROR, the output location must be a directory, not a file.")
+                cmdline.error("the output location must be a directory, not a file.")
                 exit(1)
             pdir = os.path.dirname(output)
             pdir = '.' if not pdir else pdir
             if not os.access(pdir, os.W_OK):
-                cmdline.error("ERROR, no write access to target directory. Check your permissions.")
+                cmdline.error("no write access to target directory. Check your permissions.")
                 exit(1)
     except IOError as e:
         cmdline.error("ERROR checking output directory access/permissions: %s", str(e))
@@ -351,7 +351,7 @@ def assign_ua(explodeduas):
     return explodeduas[random.randint(0, len(explodeduas)-1)]
 
 
-def parse_log(contents, options, cmdline):
+def parse_log(contents, options, cmdline, botflag):
 
     def _get_loglineregex(fmt):
         patterns = {}
@@ -364,7 +364,7 @@ def parse_log(contents, options, cmdline):
                     for g, c in re.findall(r'\$(\w+)|(.)', fmt))
             return re.compile(reexpr)
         except:
-            cmdline.error("ERROR, incorrect, incomplete, or unsupported Format (-f) value provided.")
+            cmdline.error("incorrect, incomplete, or unsupported Format (-f) value provided.")
             exit(1)
 
     def _parse_logline(line, lineno, rgxpat, strict):
@@ -408,10 +408,26 @@ def parse_log(contents, options, cmdline):
         parsed_line = _parse_logline(entry, totread, lineregex, options.abort)
         if not parsed_line:
             continue
-        totok += 1
 
         keys = parsed_line.keys()
 
+        if 'http_user_agent' in keys:
+            parsed_line["_ua"] = ua2struct(parsed_line["http_user_agent"])
+            if parsed_line["_ua"].is_bot:
+                if botflag != "N":
+                    botlist.append(parsed_line["http_user_agent"])
+                    parsed_line["_isbot"] = True
+                else:
+                    if not options.quiet:
+                        print('Bots excluded by -b/--bots setting; skipping bot found on line %d...' % totread)
+                    continue
+            elif botflag == "O":
+                if not options.quiet:
+                    print('Only bots included by -b/--bots setting; skipping non-bot found on line %d...' % totread)
+                continue
+            else:
+                parsed_line["_isbot"] = False
+                
         if "_ts" in keys:
             if earliest_ts:
                 if parsed_line["_ts"] < earliest_ts:
@@ -424,25 +440,22 @@ def parse_log(contents, options, cmdline):
             else:
                 latest_ts = parsed_line["_ts"]
 
-        if 'http_user_agent' in keys:
-            parsed_line["_ua"] = ua2struct(parsed_line["http_user_agent"])
-            if parsed_line["_ua"].is_bot:
-                botlist.append(parsed_line["http_user_agent"])
-                parsed_line["_isbot"] = True
-            else:
-                parsed_line["_isbot"] = False
-
         if 'remote_addr' in keys:
             parsed_line["_ip"] = ipaddress.ip_address(parsed_line["remote_addr"])
 
         parsed.append(parsed_line)
+        totok += 1
 
         if not options.quiet:
             if totread % 100 == 0:
                 print('Parsed %d entries...' % totread)
+                
+    if totok == 0:
+        cmdline.error("no usable entries found in the log file provided based on passed parameter filters.")
+        exit(0)
 
     if not earliest_ts and not latest_ts:
-        cmdline.error("ERROR, no timestamps found in the provided log file. Timestamps are required.")
+        cmdline.error("no timestamps found in the log file provided. Timestamps are required.")
         exit(0)
 
     return parsed, totread, totok, earliest_ts, latest_ts, botlist
@@ -494,6 +507,7 @@ def obsfucate_ip(entry):
     else:
         # minimal obfuscation to maximally preserve general geolocation, residential vs commercial, etc.
         # no guarantees here; may improve on this or rethink it in a future version
+        tries = 0
         newip = None
         while not newip:
             if ipvXaddress.version == 4:
@@ -512,6 +526,11 @@ def obsfucate_ip(entry):
             except:
                 newip = None
                 pass
+            if not newip:
+                tries += 1
+                if tries == 10:
+                    newip = ipvXaddress
+                    break
     return str(newip)
 
 
@@ -630,7 +649,8 @@ def main():
 
     options, args = cmdline.parse_args()
 
-    print("FLAN v", __version__)
+    if options.version or not options.quiet:
+        print("FLAN v", __version__)
     if options.version:
         sys.exit(0)
 
@@ -638,19 +658,18 @@ def main():
         assert (args[0] and args[1])
         assert (len(args[0]) > 0 and len(args[1]) > 0)
     except:
-        cmdline.error("ERROR, please provide an example logfile to read, and a destination output directory to write access logs to.")
+        cmdline.error("please provide an example logfile to read, and a destination output directory to write access logs to.")
         exit(1)
 
     #
     # check provided options and arguments and perform quality/sanity checks
     #
-
     contents = get_input(args[0], cmdline)
     outputdir = verify_output(args[1], cmdline)
-    totfiles, totperfile, start_dt, end_dt, bots, disttype, delim = verify_input(options, cmdline)
+    totfiles, totperfile, start_dt, end_dt, botflag, disttype, delim = verify_input(options, cmdline)
     if not options.overwrite:
         if output_exists(totfiles, outputdir):
-            cmdline.error("ERROR, --overwrite was not specified, and one or more target file(s) exist. Halting.")
+            cmdline.error("one or more target file(s) exist, and --overwrite was not specified.")
             exit(1)
     if not options.quiet:
         print("%d lines read from %s." % (len(contents), args[0].strip()))
@@ -658,19 +677,16 @@ def main():
     #
     # Parse-and-store
     #
-
-    parsed, totread, totok, earliest_ts, latest_ts, botlist = parse_log(contents, options, cmdline)
+    parsed, totread, totok, earliest_ts, latest_ts, botlist = parse_log(contents, options, cmdline, botflag)
 
     #
     # Build the time slice distribution to attribute fake log entries to
     #
-
     tot2write, time_distribution, aps = make_distribution(disttype, totfiles, totperfile, start_dt, end_dt)
-
+    
     #
     # Populate ua list with frequency-appropriate selection of bots actually seen in the example log file provided
     #
-
     uas = make_uas(botlist)
 
     if not options.quiet:
@@ -679,7 +695,6 @@ def main():
     #
     # Generate the requested fake logs from what we have
     #
-
     delim = '' if delim == 'n' \
         else '\t' if delim == 't' \
         else ',' if delim == 'c' \
@@ -726,9 +741,8 @@ def main():
             print('Log %s completed.' % log.name)
 
     if not options.quiet:
+        print('Total of %d record(s) written successfully from %d parsed template entries.' % (totwritten, totok))
         print('Log generation completed.')
-        print('Total of %d record(s) parsed successfully.' % totok)
-        print('Total of %d record(s) written successfully.' % totwritten)
 
     exit(0)
 
