@@ -487,20 +487,20 @@ def parse_log(contents, options, cmdline, botfilter, uafilter):
 def make_distribution(disttype, f, r, start_dt, end_dt):
     seconds = int((end_dt - start_dt).total_seconds())
     midpoint = round(seconds / 2.0) if disttype == 2 else None
-    totwrite = f * r
-    aps = totwrite / seconds
+    tot2write = f * r
+    aps = tot2write / seconds
     if disttype == 2:
         # normal distribution with a bit of randomization
-        normal_distribution = np.random.normal(midpoint, 0.1666 * seconds, totwrite)
+        normal_distribution = np.random.normal(midpoint, 0.1666 * seconds, tot2write)
         time_distribution = [start_dt + datetime.timedelta(seconds=int(val))
                              if 0.00 <= val <= seconds
                              else start_dt + datetime.timedelta(seconds=random.randint(0, seconds))
                              for val in normal_distribution]
     else:
         # random dist
-        time_distribution = [start_dt + datetime.timedelta(seconds=int(val)) for val in np.random.randint(seconds, size=totwrite)]
+        time_distribution = [start_dt + datetime.timedelta(seconds=int(val)) for val in np.random.randint(seconds, size=tot2write)]
     time_distribution.sort()  # chronological order
-    return totwrite, time_distribution, aps
+    return tot2write, time_distribution, aps
 
 
 def make_uas(botlist):
@@ -740,9 +740,9 @@ def main():
             log = new_outputfile(totfiles, outputdir)
             if not options.quiet:
                 print('Beginning write of fake entries to log %s.' % log.name)
-            # pop the last r timestamps from the timestamp distribution and use them on the current log file
-            timespan = time_distribution[-totperfile:]
-            time_distribution = time_distribution[:-totperfile]
+            # pop the oldest r timestamps from the timestamp distribution and use them on the current log file
+            timespan = time_distribution[:totperfile]
+            time_distribution = time_distribution[totperfile:]
             i = 0
         if options.quote:
             log.write("'%s'%s" % (generate_entry(timespan[i], parsed, uas, options), delim))
@@ -754,7 +754,7 @@ def main():
         if not options.quiet:
             if totthisfile % 100 == 0:
                 print('Wrote %d entries...' % totthisfile)
-        if totthisfile > totperfile:
+        if totthisfile == totperfile:
             if not options.quiet:
                 print('Log %s completed.' % log.name)
             log.close()
