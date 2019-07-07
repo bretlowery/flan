@@ -77,7 +77,7 @@ flan.py [arguments] template.log outputdir
 | Commandline Argument            | Definition                             | Default       |
 | ------------------- |:---------------------------------------| ------------- |
 | -a    | If specified, halt on any (i.e. the first) unparseable entries in your template log. | Skip any&all unparseable entries |
-| -b,<br>--bots     | Include, I, True, T, Yes, Y = Include bot user agents in the generated output. Exclude, E, X, False, F, No, N=don't generate entries with bot user agents. Only, O=ONLY generate entries with bot UAs. | Include |
+| -b,<br>--botfilter     | Iff -u is set to 'all' or 'bot', defines which bots appear in the generated log files, one of: seen=only use bots that appear in the template log file and are identifiable as robotic, unseen=only use bots found in the user-agents.json file (if used, this should be located in the same directory as flan.py), all=use bots from both the template log and the user-agents.json file. | seen |
 | -d,<br>--distribution | Normal=use a normal distribution centered midway between start and end datetimes for the time dimension. Random=use a random ("shotgun blast") distribution. | Normal |
 | -e,<br>--end | Specifies the end datetime to use for the generated log entries. All log entries will have a timestamp on or before this date. | Midnight tomorrow local/server time |
 | -f,<br>--format | Your Apache/NGINX log entry format string. | '$remote_addr - $remote_user [$time_local] \"$request\" $status $body_bytes_sent \"$http_referer\" \"$http_user_agent\"' |
@@ -90,6 +90,7 @@ flan.py [arguments] template.log outputdir
 | -r,<br>--records | The number of entries to write per generated log file. Min=1, Max=1M. | 10,000 |
 | -s,<br>--start | Specifies the start datetime to use for the generated log entries. All log entries will have a timestamp on or after this date. | Midnight today local/server time |
 | -t,<br>--timeformat | Timestamp format to use in the generated log file(s), EXCLUDING TIMEZONE (see -z parameter), in Python strftime format (see http://strftime.org/). | '%-d/%b/%Y:%H:%M:%S' |
+| -u,<br>--uafilter | Defines the kinds of user agents to generate in the log files, one of: bots=use bot UAs only, nonbots=use non-bot UAs only, all=use both bot and non-bot UAs. | all |
 | -v | Print version number and immediately exit. | |
 | -z,<br>--timezone | Timezone offset in (+/-)HHMM format to append to timestamps in the generated log file(s), or pass '' to specify no timezone. | Your current local/server timezone. |
 
