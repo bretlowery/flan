@@ -15,7 +15,7 @@ import string
 import numpy as np
 
 
-__version__ = "0.0.1"
+__version__ = "0.0.2"
 
 MONTHS = {
     'Jan': 1,
@@ -173,6 +173,9 @@ uafreqlist = \
     '{"percent":"0.2%","useragent":"Mozilla//5.0 (Windows NT 10.0; Win64; x64) AppleWebKit//537.36 (KHTML, like Gecko) Chrome//70.0.3538.102 Safari//537.36 Edge//18.18362","system":"Edge 18.0 Win10"},' \
     '{"percent":"0.2%","useragent":"Mozilla//5.0 (Windows NT 10.0; Win64; x64) AppleWebKit//537.36 (KHTML, like Gecko) Chrome//70.0.3538.102 Safari//537.36 Edge//18.18362","system":"Edge 18.0 Win10"}]'
 
+
+ipmap = {}
+ipmap2 = {}
 
 def get_input(templatelogfile, cmdline):
     contents = None
@@ -516,7 +519,8 @@ def make_uas(botlist):
     return d
 
 
-def obsfucate_ip(entry):
+def obsfucate_ip(entry, options, cmdline):
+    global ipmap, ipmap2
     ipvXaddress = entry["_ip"]
     isbot = entry["_isbot"]
     # we don't obfuscate any of these
@@ -526,35 +530,43 @@ def obsfucate_ip(entry):
             or ipvXaddress.is_private \
             or ipvXaddress.is_reserved \
             or isbot:
-        newip = ipvXaddress
+        newip = str(ipvXaddress)
     else:
-        # minimal obfuscation to maximally preserve general geolocation, residential vs commercial, etc.
-        # no guarantees here; may improve on this or rethink it in a future version
+        # obfuscate but try to preserve general geolocation, residential vs commercial, etc.
+        ipmapping = "onetomany" if options.ips.strip().lower() != "onetoone" else "onetoone"
+        ipkey = str(ipvXaddress)
+
+        # generate a new ip if using o2m or if o2o found nothing in the map
+        # o2m may generate multiple obfuscated IPs from the same IP during the same run
+        # o2o always generates/returns the same obfuscated IP from a given input IP during the same run
         tries = 0
-        newip = None
+        newip = ipmap[ipkey] if ipmapping == "onetoone" and ipkey in ipmap.keys() else None
         while not newip:
             if ipvXaddress.version == 4:
-                newip = "%s.%s" % (str(ipvXaddress).rsplit(".", 1)[0], str(random.randint(1, 255)))
+                newip = "%s.%s" % (ipkey.rsplit(".", 1)[0], str(random.randint(0, 255)))
             else:
-                newip = "%s:%s" % (str(ipvXaddress).rsplit(":", 1)[0], ''.join(random.choice(string.digits+"abcdef") for i in range(4)))
-            # is it a valid global ip?
+                newip = "%s:%s" % (ipkey.rsplit(":", 1)[0], ''.join(random.choice(string.digits+"abcdef") for i in range(4)))
+            # is it a valid global ip? if not, regenerate it
             try:
                 chk = ipaddress.ip_address(newip)
-                if chk.is_link_local \
-                        or chk.is_multicast \
-                        or chk.is_loopback \
-                        or chk.is_private \
-                        or chk.is_reserved :
+                if not chk.is_global:
                     newip = None
             except:
                 newip = None
                 pass
-            if not newip:
-                tries += 1
-                if tries == 10:
-                    newip = ipvXaddress
-                    break
-    return str(newip)
+            if newip:
+                if ipmapping == "onetoone":
+                    if newip in ipmap2.keys():
+                        newip = None
+                        tries += 1
+                        if tries == 1024:
+                            cmdline.error("excessive number of retries during attempt to obfuscate ip %s using one-to-one method." % ipkey)
+                            exit(0)
+                    else:
+                        ipmap[ipkey] = newip
+                        ipmap2[newip] = True
+
+    return newip
 
 
 def obfuscate_ua(entry, uas):
@@ -562,20 +574,20 @@ def obfuscate_ua(entry, uas):
     entry_device = entry["_ua"].device.family
     entry_os = entry["_ua"].os.family
     entry_is_bot = entry["_isbot"]
-    hits = [uas[x] for x in uas
+    hits = [uas[x].ua_string for x in uas
             if uas[x].browser.family == entry_browser
             and uas[x].device.family == entry_device
             and uas[x].os.family == entry_os
             and uas[x].is_bot == entry_is_bot]
     h = len(hits)
-    return str(hits[random.randint(0, h - 1)] if h > 0 else entry["_ua"])
+    return str(hits[random.randint(0, h - 1)] if h > 0 else entry["_ua"].ua_string)
 
 
-def generate_entry(timestamp, parsed, uas, options):
+def generate_entry(timestamp, parsed, uas, options, cmdline):
     # pick a random parsed entry from the previously generated distribution
     random_entry = parsed[random.randint(0, len(parsed)-1)]
     # ip obsfucation
-    ip = obsfucate_ip(random_entry)
+    ip = obsfucate_ip(random_entry, options, cmdline)
     # ua obfuscation
     ua = obfuscate_ua(random_entry, uas)
     # format the timestamp back to desired nginx $time_local format
@@ -621,6 +633,11 @@ def main():
                       dest="format",
                       default='$remote_addr - $remote_user [$time_local] \"$request\" $status $body_bytes_sent \"$http_referer\" \"$http_user_agent\"',
                       help='Format of the long entry line. Default is: \'$remote_addr - $remote_user [$time_local] \"$request\" $status $body_bytes_sent \"$http_referer\" \"$http_user_agent\"\'', )
+    cmdline.add_option("-i", "--ipmapping",
+                      action="store",
+                      dest="ips",
+                      default='onetomany',
+                      help='Obfuscation rule to use for IPs, one of: onetomany=map one IPv4 to up to 255 IPv4 /24 addresses or one IPv6 to up to 65536 IPv6 /116 addresses, onetoone=map one IPv4/IPv6 address to one IPv4/IPv6 address within the same /24 or /116 block. Default=onetomany.', )
     cmdline.add_option("-k",
                       action="store_true",
                       dest="quote",
@@ -745,9 +762,9 @@ def main():
             time_distribution = time_distribution[totperfile:]
             i = 0
         if options.quote:
-            log.write("'%s'%s" % (generate_entry(timespan[i], parsed, uas, options), delim))
+            log.write("'%s'%s" % (generate_entry(timespan[i], parsed, uas, options, cmdline), delim))
         else:
-            log.write("%s%s" % (generate_entry(timespan[i], parsed, uas, options), delim))
+            log.write("%s%s" % (generate_entry(timespan[i], parsed, uas, options, cmdline), delim))
         totthisfile += 1
         totwritten += 1
         i += 1
