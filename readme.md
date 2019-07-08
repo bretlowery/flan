@@ -15,11 +15,11 @@ and some other considerations.
 
 I looked for solutions but they lacked. 90% generated random data, including invalid IP addresses, or user agents that didn't match a real-world distribution of user-agents, which was important for my immediate needs (fraud research). The other 10% couldn't handle my special use cases, like preservation of partner/SEO bots and private network IPs. So, I created FLAN.
 
-### Features
+FLAN generates up to 1K test access.log files of up to 1M records each, per run. On my Mac, it can generate 200K records in about 30 seconds in verbose mode with basic settings (enabling session preservation with -p adds about 5x to the runtime) so it's way way fast on any ol' EC2 or GCE server including the free tier stuff.
 
-FLAN generates up to 1K test access.log files of up to 1M records each, per run. On my Mac, it can generate 200K records in about 30 seconds in verbose mode, so it's way way fast on any ol' EC2 or GCE server including the free tier stuff.
+### Generating log files semantically similar to production
 
-To ensure your fake logs look as semantically real as your production ones, it reads a "template" access.log from a real production system that you provide (hereinafter referred to as the "template log"). It doesn't matter how many records the template log contains, but the longer it is the more realistic your generated fake logs will be. You template log can be bigger than your generated log file(s), or vice versa.
+To ensure your fake logs look as semantically real as your production ones, it reads a "template" access.log from a real production system that you provide (hereinafter referred to as the "template log"). It doesn't matter how many records the template log contains, but the longer it is the more realistic your generated fake logs will be. If you do not specify session preservation with -p, your template log can be bigger or smaller than your generated log file(s). If you specify session preservation, your generated log files will be the same total record size as your template log file.
 
 You can specify the number of access.log file(s) you want to generate, and the entries per file. Access logs are created using the standard suffixes access.log, access.log.1, access.log.2, etc. You can specify a start and end datetime for your log entries.
 
@@ -51,8 +51,10 @@ You can specify the overall time distribution you want to appear in the logs, on
 
 *Even*<br>Specifies a random (even) distribution be used instead. You may want to use this if you are an international company and no one time zone wake/sleep cycle dominates your site/app usage patterns.
 
-### THEREFORE...
-> The total number of entries generated is equal to the -n parameter value TIMES the -r parameter value, spread in the selected distribution across the timeframe specified between the -s and -e parameter start and end datetimes.
+### How many records does it generate?
+> If you are NOT using session preservation (-p), the total number of entries generated is equal to the -n parameter value TIMES the -r parameter value, spread in the selected distribution across the timeframe specified between the -s and -e parameter start and end datetimes.
+
+> If you ARE using session preservation (-p), the total number of entries generated is equal to the total number in your provided template log file.
 
 ### Released Enhancements
 
