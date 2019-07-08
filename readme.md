@@ -60,8 +60,10 @@ v0.0.1
 Including bots not in the template log from a list of bots commonly seen in the wild by frequency commonly seen via the user-agent.json file and appropriate -b and -u parameter settings.
 
 v0.0.2 
-Preservation and/or generation of user "sessions" (in the context of an access.log, really just the clustering of repeated, order-significant IP/UA combos following a semantically sound series of request paths) in the generated logs via the -i onetoone setting.
+Partial reservation and/or generation of user "sessions" (in the context of an access.log, really just the clustering of repeated, order-significant IP/UA combos following a semantically sound series of request paths) in the generated logs via the -i onetoone setting.
 
+v0.0.3
+Full session preservation support via the -p and -i parameters (see below).
 
 ### Future Enhancements
 
@@ -100,6 +102,7 @@ flan.py [arguments] template.log outputdir
 | -l,<br>--linedelimiter | Line delimiter to append to all generated log entries, one of: [None, No, False, N, F], [Comma, C], [Tab, T], CR, LF, or CRLF.| CRLF |
 | -n,<br>--numfiles | The total number of access.log files to generate. Min=1, Max=1000. Example: '-n 4' creates access.log, access.log.1, access.log.2, and access.log.3 in the output directory. | 1 |
 | -o | Overwrite any generated log file(s) that already exist. This check is made before writing anything. | Error if any already exist, leaving any & all of them unchanged. |
+| -p | If specified, preserves sessions as follows: 1. Ignores the -r setting and generates as many records as exist in the template log file; 2. Maintains the time index order of the request paths in the template log in the generated logs; 3. Maintains the UA for each IP found in the template log. Requires '-i onetoone' to maintain IP one-to-one mapping so session IPs are preserved. If not specified, request paths are randomly assigned throughout the generated time distribution, destroying sessions. | Do not preserve sessions. |
 | -q | Basho-like stdout. | Proust-like stdout. |
 | -r,<br>--records | The number of entries to write per generated log file. Min=1, Max=1M. | 10,000 |
 | -s,<br>--start | Specifies the start datetime to use for the generated log entries. All log entries will have a timestamp on or after this date. | Midnight today local/server time |
