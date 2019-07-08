@@ -23,9 +23,17 @@ To ensure your fake logs look as semantically real as your production ones, it r
 
 You can specify the number of access.log file(s) you want to generate, and the entries per file. Access logs are created using the standard suffixes access.log, access.log.1, access.log.2, etc. You can specify a start and end datetime for your log entries.
 
-_IP addresses_<br>Global addresses in the template log are obfuscated: the last triplet of an IPv4 or the last quad of an IPv6 are randomized. This provides minimal IP obfuscation while maximizing retention of other interesting properties in your IP addresses, like the geolocation of your users, commercial vs residential, etc. Non-global IPs (private, loopback, etc) are kept as-is. All generated IPs are guaranteed valid: for example, 192.168.0.0 is a network identifier and is never assigned to an interface, and 169.254.0.0/16 link-locals aren't routable, so it won't use any of those.
+_IP addresses_<br>Global addresses in the template log are obfuscated: the last three digits (/24) of an IPv4 or the last four digits (/116) of an IPv6 are randomized. This provides minimal IP obfuscation while maximizing retention of other interesting properties in your IP addresses, like the geolocation of your users, commercial vs residential, etc. 
 
-_User Agents_<br>A basic bot-or-not check is made on all user agents in the template log. All user agents identified as bots are extracted and optionally replayed as-is into your generated fake logs, with their real originating IPs. Real-device agents are generated from a list of the top real-world user agents in the wild, weighted by frequency of occurrence, and matching the distribution of browser, os, and desktop/mobile possibilities that are found in your template log. If your template log contains only mobile Safari UAs, all you will see in your generated logs is mobile Safari UAs. If you have 70% mobile Chrome and 30% desktop all others in your template log, you will get that. You have the ability to control what percentage of bots vs non-bot UAs you get (currently, this is hard-coded to what I use, 21.9% bots and 78.1% everything else, but that's easy to change). You can optionally inclide bots from a list of common bots found in the supplied user-agents.json file, an d/or optionally include only those bots that are found in your template file, or you can choose to include no bots at all. The -u and -b commandline parameters control what bots if any appear. See the commandline parameter descriptions for details. 
+Non-global IPs (private, loopback, etc) are kept as-is. All generated IPs are guaranteed valid: for example, 192.168.0.0 is a network identifier and is never assigned to an interface, and 169.254.0.0/16 link-locals aren't routable, so it won't use any of those. 
+
+The -i parameter allows you to obfuscate IPs using either a one-to-many or one-to-one mapping. One-to-many will obfuscate the same IP to one or multiple random IPs in the resulting log files. One-to-one will ensure that IP "X" is obfuscated to the same IP "Y" every time during any given run. One-to-one mappings are not preserved between runs.
+
+_User Agents_<br>A basic bot-or-not check is made on all user agents in the template log. All user agents identified as bots are extracted and optionally replayed as-is into your generated fake logs, with their real originating IPs. 
+
+Real-device agents are generated from a list of the top real-world user agents in the wild, weighted by frequency of occurrence, and matching the distribution of browser, os, and desktop/mobile possibilities that are found in your template log. If your template log contains only mobile Safari UAs, all you will see in your generated logs is mobile Safari UAs. If you have 70% mobile Chrome and 30% desktop all others in your template log, you will get that. 
+
+You have the ability to control what percentage of bots vs non-bot UAs you get (currently, this is hard-coded to what I use, 21.9% bots and 78.1% everything else, but that's easy to change). You can optionally include bots from a list of common bots found in the supplied user-agents.json file, an d/or optionally include only those bots that are found in your template file, or you can choose to include no bots at all. The -u and -b commandline parameters control what bots if any appear. See the commandline parameter descriptions for details. 
 
 ### IP/User Agent Examples:
 
@@ -46,21 +54,26 @@ You can specify the overall time distribution you want to appear in the logs, on
 ### THEREFORE...
 > The total number of entries generated is equal to the -n parameter value TIMES the -r parameter value, spread in the selected distribution across the timeframe specified between the -s and -e parameter start and end datetimes.
 
+### Released Enhancements
+
+v0.0.1
+Including bots not in the template log from a list of bots commonly seen in the wild by frequency commonly seen via the user-agent.json file and appropriate -b and -u parameter settings.
+
+v0.0.2 
+Preservation and/or generation of user "sessions" (in the context of an access.log, really just the clustering of repeated, order-significant IP/UA combos following a semantically sound series of request paths) in the generated logs via the -i onetoone setting.
+
+
 ### Future Enhancements
 
 Log files have complex semantics and multiple consumption possibilities. Possible future enhancements:
 
-1. Including bots not in the template log from a list of bots commonly seen in the wild by frequency commonly seen;
+1. Ability to specify the generation of specific CIDRs, ASNUM blocks, IP ranges, etc.;
 
-2. Preservation and/or generation of user "sessions" (in the context of an access.log, really just the clustering of repeated, order-significant IP/UA combos following a semantically sound series of request paths) in the generated logs;
+2. Ability to inject custom data into the user-agent field for downstream flagging/detection;
 
-3. Ability to specify the generation of specific CIDRs, ASNUM blocks, IP ranges, etc.;
+3. Support additional (and better for some use cases) ways to obfuscate IPs that make sense and are relatively fast;
 
-4. Ability to inject custom data into the user-agent field for downstream flagging/detection;
-
-5. Support additional (and better for some use cases) ways to obfuscate IPs that make sense and are relatively fast;
-
-6. Support other time distributions for specific use cases. Examples: heavy-tailed Poisson to model unlikely events/DDoS, discrete/degenerate distributions to emulate API/RESTful activity, etc. For considerations, see: 
+4. Support other time distributions for specific use cases. Examples: heavy-tailed Poisson to model unlikely events/DDoS, discrete/degenerate distributions to emulate API/RESTful activity, etc. For considerations, see: 
 <br/>https://en.wikipedia.org/wiki/Web_traffic 
 <br/>https://www.nngroup.com/articles/traffic-log-patterns
 <br/>https://en.wikipedia.org/wiki/Traffic_generation_model
@@ -82,6 +95,7 @@ flan.py [arguments] template.log outputdir
 | -e,<br>--end | Specifies the end datetime to use for the generated log entries. All log entries will have a timestamp on or before this date. | Midnight tomorrow local/server time |
 | -f,<br>--format | Your Apache/NGINX log entry format string. | '$remote_addr - $remote_user [$time_local] \"$request\" $status $body_bytes_sent \"$http_referer\" \"$http_user_agent\"' |
 | -h | Print out these options on the commandline. | |
+| -i,<br>--ipmapping | Defines how IPs are obfuscated, one of: onetomany=one template log IP is mapped to one or more obfuscated IPs in the generated logs; this is the most random obfuscation but destroys sessions. onetoone=maps every template log IP to a single obfuscated IP in the generated logs, preserving sessions. | onetomany |
 | -k | If specified, add single quotes to the beginning and end of every generated log entry line. | Do not add quotes. |
 | -l,<br>--linedelimiter | Line delimiter to append to all generated log entries, one of: [None, No, False, N, F], [Comma, C], [Tab, T], CR, LF, or CRLF.| CRLF |
 | -n,<br>--numfiles | The total number of access.log files to generate. Min=1, Max=1000. Example: '-n 4' creates access.log, access.log.1, access.log.2, and access.log.3 in the output directory. | 1 |
