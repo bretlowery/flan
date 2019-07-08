@@ -15,7 +15,7 @@ import string
 import numpy as np
 
 
-__version__ = "0.0.2"
+__version__ = "0.0.3"
 
 MONTHS = {
     'Jan': 1,
@@ -269,6 +269,11 @@ def verify_input(options, cmdline):
     elif delim not in ['cr', 'lf', 'crlf']:
         cmdline.error("the --linedelimiter/-l value if specified should be one of: none, no, n, false, f, tab, t, comma, c, cr, lf, or crlf.")
         exit(1)
+
+    if options.preserve_sessions:
+        if options.ips.strip().lower() != "onetoone":
+            cmdline.error("-p (session preservation) requires that '-i onetoone' be specified as well.")
+            exit(1)
 
     if not options.quiet:
         if options.abort:
@@ -569,7 +574,11 @@ def obsfucate_ip(entry, options, cmdline):
     return newip
 
 
-def obfuscate_ua(entry, uas):
+def obfuscate_ua(entry, uas, options):
+    if options.preserve_sessions:
+        return entry["_ua"].ua_string
+    # pick a ua from the same family of uas
+    # if there isn't one, use the one provided
     entry_browser = entry["_ua"].browser.family
     entry_device = entry["_ua"].device.family
     entry_os = entry["_ua"].os.family
@@ -583,13 +592,18 @@ def obfuscate_ua(entry, uas):
     return str(hits[random.randint(0, h - 1)] if h > 0 else entry["_ua"].ua_string)
 
 
-def generate_entry(timestamp, parsed, uas, options, cmdline):
-    # pick a random parsed entry from the previously generated distribution
-    random_entry = parsed[random.randint(0, len(parsed)-1)]
+def generate_entry(timedist, timeindex, parsed, uas, options, cmdline):
+    timestamp = timedist[timeindex]
+    if options.preserve_sessions:
+        # pick the next parsed entry in order, since we are preserving sessions and need to keep it in order
+        entry = parsed[timeindex]
+    else:
+        # pick a random parsed entry from the previously generated distribution
+        entry = parsed[random.randint(0, len(parsed)-1)]
     # ip obsfucation
-    ip = obsfucate_ip(random_entry, options, cmdline)
+    ip = obsfucate_ip(entry, options, cmdline)
     # ua obfuscation
-    ua = obfuscate_ua(random_entry, uas)
+    ua = obfuscate_ua(entry, uas, options)
     # format the timestamp back to desired nginx $time_local format
     ts = options.timeformat+" "+options.timezone
     ts = timestamp.strftime(ts.rstrip())
@@ -598,11 +612,11 @@ def generate_entry(timestamp, parsed, uas, options, cmdline):
         replace("$time_local", ts).\
         replace("$remote_addr", ip).\
         replace("$http_user_agent", ua).\
-        replace("$remote_user", random_entry["remote_user"]).\
-        replace("$request", random_entry["request"]).\
-        replace("$status", random_entry["status"]).\
-        replace("$body_bytes_sent", random_entry["body_bytes_sent"]).\
-        replace("$http_referer", random_entry["http_referer"])
+        replace("$remote_user", entry["remote_user"]).\
+        replace("$request", entry["request"]).\
+        replace("$status", entry["status"]).\
+        replace("$body_bytes_sent", entry["body_bytes_sent"]).\
+        replace("$http_referer", entry["http_referer"])
 
 
 def main():
@@ -657,6 +671,11 @@ def main():
                        dest="overwrite",
                        help="If specified, delete any generated log files if they already exist. "
                             "If not specified (the default), exit with an error if any log file to be generated already exists.")
+    cmdline.add_option("-p",
+                       action="store_true",
+                       dest="preserve_sessions",
+                       help="If specified, preserve sessions (specifically, pathing order for a given IP/UA/user combo). '-i onetoone' must also be specified for this to work."
+                            "If not specified (the default), do not preserve sessions.")
     cmdline.add_option("-q",
                        action="store_true",
                        dest="quiet",
@@ -724,6 +743,12 @@ def main():
     #
     parsed, totread, totok, earliest_ts, latest_ts, botlist = parse_log(contents, options, cmdline, botfilter, uafilter)
 
+    if options.preserve_sessions:
+        totperfile = int(totok * 1.0 / totfiles)
+        if not options.quiet:
+            print("NOTE: -p (preserve sessions) specified; adjusting -r (the number of records per file) to %d to match "
+                  "the size of the template file." % totperfile)
+
     #
     # Build the time slice distribution to attribute fake log entries to
     #
@@ -762,9 +787,9 @@ def main():
             time_distribution = time_distribution[totperfile:]
             i = 0
         if options.quote:
-            log.write("'%s'%s" % (generate_entry(timespan[i], parsed, uas, options, cmdline), delim))
+            log.write("'%s'%s" % (generate_entry(timespan, i, parsed, uas, options, cmdline), delim))
         else:
-            log.write("%s%s" % (generate_entry(timespan[i], parsed, uas, options, cmdline), delim))
+            log.write("%s%s" % (generate_entry(timespan, i, parsed, uas, options, cmdline), delim))
         totthisfile += 1
         totwritten += 1
         i += 1
