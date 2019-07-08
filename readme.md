@@ -2,7 +2,7 @@
 
 FLAN is a Python 3.x utility that creates one or more fake Apache or NGINX log files with fake entries based on a real-world "template" access.log file that you provide it.
 
-I needed a way to test some systems that cosume access.log entries in an environment where:
+I needed a way to test some systems that consume access.log entries in an environment where:
 
 1. Volume/scale was  high (millions of users/sessions);
 2. Production access.logs were protected with limited access for obvious reasons;
