@@ -15,7 +15,7 @@ import string
 import numpy as np
 import pickle
 
-__version__ = "0.0.3"
+__version__ = "0.0.4"
 
 MONTHS = {
     'Jan': 1,
