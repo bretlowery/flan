@@ -1,4 +1,3 @@
-from __future__ import print_function
 import os
 import sys
 import glob
@@ -15,7 +14,7 @@ import string
 import numpy as np
 import pickle
 
-__version__ = "0.0.4"
+__version__ = "0.0.5"
 
 MONTHS = {
     'Jan': 1,
@@ -725,9 +724,9 @@ def main():
                            "access.log.1, access.log.2, and access.log.3 in the output directory.", )
     cmdline.add_option("-o",
                        action="store_true",
-                       dest="overwrite",
-                       help="If specified, delete any generated log files if they already exist. "
-                            "If not specified (the default), exit with an error if any log file to be generated already exists.")
+                       dest="streamout",
+                       help="If specified, ignores the output directory and -n flag values, enables quiet mode (-q), and streams all output to stdout. "
+                            "If not specified (the default), output is written to file(s) in the output directory provided.")
     cmdline.add_option("-p",
                        action="store_true",
                        dest="preserve_sessions",
@@ -766,6 +765,11 @@ def main():
                        action="store_true",
                        dest="version",
                        help="Print version and exit.")
+    cmdline.add_option("-w",
+                       action="store_true",
+                       dest="overwrite",
+                       help="If specified, delete any generated log files if they already exist. "
+                            "If not specified (the default), exit with an error if any log file to be generated already exists.")
     cmdline.add_option("-x",
                        action="store_true",
                        dest="excludeuatag",
@@ -786,25 +790,28 @@ def main():
 
     options, args = cmdline.parse_args()
 
+    if options.streamout:
+        options.quiet = True
+
     if options.version or not options.quiet:
         print("FLAN v", __version__)
     if options.version:
         sys.exit(0)
 
     try:
-        assert (args[0] and args[1])
-        assert (len(args[0]) > 0 and len(args[1]) > 0)
+        assert (args[0] and (args[1] or options.streamout))
+        assert (len(args[0]) > 0 and (len(args[1]) > 0 or options.streamout))
     except:
-        cmdline.error("please provide an example logfile to read, and a destination output directory to write access logs to.")
+        cmdline.error("please provide an example logfile to read, and either a destination output directory to write access logs to OR specify stream output with -o.")
         exit(1)
 
     #
     # check provided options and arguments and perform quality/sanity checks
     #
     contents = get_input(args[0], options, cmdline)
-    outputdir = verify_output(args[1], cmdline)
+    outputdir = verify_output(args[1], cmdline) if not options.streamout else None
     totfiles, totperfile, start_dt, end_dt, botfilter, uafilter, disttype, delim = verify_input(options, cmdline)
-    if not options.overwrite:
+    if not options.overwrite and not options.streamout:
         if output_exists(totfiles, outputdir):
             cmdline.error("one or more target file(s) exist, and --overwrite was not specified.")
             exit(1)
@@ -848,17 +855,21 @@ def main():
     totthisfile = 0
     totwritten = 0
     i = 0
-    log = None
     timespan = []
+    log = None
     while totwritten < tot2write:
         if not log:
-            log = new_outputfile(totfiles, outputdir)
-            if not options.quiet:
-                print('Beginning write of fake entries to log %s.' % log.name)
-            # pop the oldest r timestamps from the timestamp distribution and use them on the current log file
-            timespan = time_distribution[:totperfile]
-            time_distribution = time_distribution[totperfile:]
-            i = 0
+            if options.streamout:
+                log = sys.stdout
+                timespan = time_distribution
+            else:
+                log = new_outputfile(totfiles, outputdir)
+                if not options.quiet:
+                    print('Beginning write of fake entries to log %s.' % log.name)
+                # pop the oldest r timestamps from the timestamp distribution and use them on the current log file
+                timespan = time_distribution[:totperfile]
+                time_distribution = time_distribution[totperfile:]
+                i = 0
         if options.quote:
             log.write("'%s'%s" % (generate_entry(timespan, i, parsed, uas, options, cmdline), delim))
         else:
@@ -869,15 +880,16 @@ def main():
         if not options.quiet:
             if totthisfile % 100 == 0:
                 print('Wrote %d entries...' % totthisfile)
-        if totthisfile == totperfile:
-            if not options.quiet:
-                print('Log %s completed.' % log.name)
-            log.close()
-            log = None
-            totfiles -= 1
-            totthisfile = 0
+        if not options.streamout:
+            if totthisfile == totperfile:
+                if not options.quiet:
+                    print('Log %s completed.' % log.name)
+                log.close()
+                log = None
+                totfiles -= 1
+                totthisfile = 0
 
-    if log:
+    if log and not options.streamout:
         if not log.closed:
             log.close()
         if not options.quiet:
