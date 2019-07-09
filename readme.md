@@ -62,7 +62,7 @@ v0.0.1<br>
 Including bots not in the template log from a list of bots commonly seen in the wild by frequency commonly seen via the user-agent.json file and appropriate -b and -u parameter settings.
 
 v0.0.2<br>
-Partial reservation and/or generation of user "sessions" (in the context of an access.log, really just the clustering of repeated, order-significant IP/UA combos following a semantically sound series of request paths) in the generated logs via the -i onetoone setting.
+Partial preservation and/or generation of user "sessions" (in the context of an access.log, really just the clustering of repeated, order-significant IP/UA combos following a semantically sound series of request paths) in the generated logs via the -i onetoone setting.
 
 v0.0.3<br>
 Full session preservation support via the -p and -i parameters (see below).
