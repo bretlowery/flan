@@ -2,6 +2,21 @@
 
 FLAN is a Python 3.x utility that creates one or more fake Apache or NGINX log files with fake entries based on a real-world "template" access.log file that you provide it.
 
+
+### Feature Highlights
+
+1. It's fast, with speed enhancements like replay ability;
+2. It's real, generating its data in part from an example "template" log file you provide and using valid IPs and user agent combos that make sense;
+3. You can optionally preserve sessions and session semantics while obfuscating their original source;
+4. Use different traffic distributions in your generated files: normal (bell curve), even (random), etc. between start and end dates you specify;
+5. You can include bot traffic, or not;
+6. You can include only bots that actually appear in your provided template log file, bots that occur in the wild (in the proportions they actually occur in), both, or no bots at all;
+7. You can include only user agents found in your template file, user agents that are common in the wild (in the proportions they actually occur in), or both;
+8. Supports and obfuscates both IPv4 and IPv6, using intelligent rules that guarantee valid global IPs while maintaining non-global IPs like loopback and private networks as-is without obfuscation;
+9. Write to files, or stream results to stdout.
+
+### Background
+
 I needed a way to test some systems that consume access.log entries in an environment where:
 
 1. Volume/scale was  high (millions of users/sessions);
