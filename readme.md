@@ -19,7 +19,7 @@ FLAN generates up to 1K test access.log files of up to 1M records each, per run.
 
 ### Generating log files semantically similar to production
 
-To ensure your fake logs look as semantically real as your production ones, it reads a "template" access.log from a real production system that you provide (hereinafter referred to as the "template log"). It doesn't matter how many records the template log contains, but the longer it is the more realistic your generated fake logs will be. If you do not specify session preservation with -p, your template log can be bigger or smaller than your generated log file(s). If you specify session preservation, your generated log files will be the same total record size as your template log file.
+To ensure your fake logs look as semantically real as your production ones, it reads a "template" access.log from a real production system that you provide (hereinafter referred to as the "template log"). It doesn't matter how many records the template log contains, but the longer it is the more realistic your generated fake logs will be. If you do NOT specify session preservation with the -p flag (described below), you can specify the number of files and records to generate, and your template log can be bigger or smaller than your generated log file(s). If you specify session preservation, your generated log files will be the same total record size as your template log file.
 
 You can specify the number of access.log file(s) you want to generate, and the entries per file. Access logs are created using the standard suffixes access.log, access.log.1, access.log.2, etc. You can specify a start and end datetime for your log entries.
 
@@ -75,13 +75,16 @@ Log files have complex semantics and multiple consumption possibilities. Possibl
 
 2. Ability to inject custom data into the user-agent field for downstream flagging/detection;
 
-3. Support additional (and better for some use cases) ways to obfuscate IPs that make sense and are relatively fast;
+3. Support additional (and, for some use cases, better) ways to obfuscate IPs that make sense and are relatively fast;
 
 4. Support other time distributions for specific use cases. Examples: heavy-tailed Poisson to model unlikely events/DDoS, discrete/degenerate distributions to emulate API/RESTful activity, etc. For considerations, see: 
 <br/>https://en.wikipedia.org/wiki/Web_traffic 
 <br/>https://www.nngroup.com/articles/traffic-log-patterns
 <br/>https://en.wikipedia.org/wiki/Traffic_generation_model
 <br>https://en.wikipedia.org/wiki/List_of_probability_distributions
+
+5. Tighter integrations: Splunk, QRadar, LogRhythm, SolarWinds, LogStash/ELK, Graylog, LOGalyze, ManageEngine, FluentD, Apache Flume are a few off the top of my head.
+
 
 ### PRs welcome!
 
@@ -111,6 +114,8 @@ flan.py [arguments] template.log outputdir
 | -t,<br>--timeformat | Timestamp format to use in the generated log file(s), EXCLUDING TIMEZONE (see -z parameter), in Python strftime format (see http://strftime.org/). | '%-d/%b/%Y:%H:%M:%S' |
 | -u,<br>--uafilter | Defines the kinds of user agents to generate in the log files, one of: bots=use bot UAs only, nonbots=use non-bot UAs only, all=use both bot and non-bot UAs. | all |
 | -v | Print version number and immediately exit. | |
+| -x | If specified, excludes the "Flan/v#(https://bret.guru/flan)" from the generated log file's user agent values and leaves the UAs as-is. | Append the Flan UA tag to the generated UAs. |
+| -y | If specified, enables the replay log. Replay logging parses the template log file on first execution and stores the parsed results in a binary 'flan.replay' file located in the same directory as flan.py. On subsequent execution, Flan will load the already-parsed replay log rather than reparse the template log file, saving lots of time when reusing the same large template log repeatedly. Once created, the replay log is never overwritten or deleted; delete it manually first to recreate it on the next Flan run, if needed. If a replay log exists but -y is not specified, the replay log is ignored (neither read nor overwritten).| Do not use replay logs; parse the template log every time and ignore any existing replay log. |
 | -z,<br>--timezone | Timezone offset in (+/-)HHMM format to append to timestamps in the generated log file(s), or pass '' to specify no timezone. | Your current local/server timezone. |
 
 
