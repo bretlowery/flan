@@ -14,7 +14,7 @@ import string
 import numpy as np
 import pickle
 
-__version__ = "0.0.5"
+__version__ = "0.0.6"
 
 MONTHS = {
     'Jan': 1,
@@ -175,157 +175,15 @@ uafreqlist = \
 
 ipmap = {}
 ipmap2 = {}
-
-def get_input(templatelogfile, options, cmdline):
-    contents = None
-    if not options.replay:
-        try:
-            templatelogfile = templatelogfile.strip()
-            for file in glob.glob(templatelogfile):
-                with open(file, "r") as fp:
-                    contents = fp.readlines()
-                    fp.close()
-            # do something with file
-        except IOError as e:
-            cmdline.error("ERROR trying to read the example log file: %s", str(e))
-            exit(1)
-        if not contents:
-            cmdline.error("the example access log provided is empty.")
-            exit(1)
-    return contents
+replaylogfile = os.path.join(os.path.dirname(__file__), 'flan.replay')
 
 
-def verify_input(options, cmdline):
-    f = 0
-    if options.files.isdigit():
-        f = int(options.files)
-        f = 0 if f < 1 or f > 1000 else f
-    if f == 0:
-        cmdline.error("the number of files to generate must be between 1 and 1000.")
-        exit(1)
-    r = 0
-    if options.records.isdigit():
-        r = int(options.records)
-        r = 0 if r < 1 or r > 1000000 else r
-    if r == 0:
-        cmdline.error("the number of records to generate per file must be between 1 and 1000000.")
-        exit(1)
-
-    chk = datetime.datetime.now()
-    try:
-        x = chk.strftime(options.timeformat)
-    except:
-        cmdline.error("the --timestamp format must be a valid Python strftime format. See http://strftime.com.")
-        exit(1)
-
-    start_dt = None
-    try:
-        start_dt = dtparser.parse(options.start_dt)
-    except:
-        pass
-    if not start_dt:
-        start_dt = datetime.datetime.combine(datetime.date.today(), datetime.datetime.min.time())
-    end_dt = None
-    try:
-        end_dt = dtparser.parse(options.end_dt)
-    except:
-        pass
-    if not end_dt:
-        end_dt = datetime.datetime.combine(datetime.date.today() + datetime.timedelta(days=1), datetime.datetime.min.time())
-
-    botfilter = options.botfilter.strip().lower()
-    if botfilter:
-        if botfilter not in ("all", "seen", "unseen"):
-            cmdline.error("the -b/--botfilter value if specified should be one of: 'all', 'seen', or 'unseen'.")
-            exit(1)
-    else:
-        botfilter = "seen"
-
-    uafilter = options.uafilter.strip().lower()
-    if uafilter:
-        if uafilter not in ("all", "bots", "nobots"):
-            cmdline.error("the -u/--uafilter value if specified should be one of: 'all', 'bots', or 'nobots'.")
-            exit(1)
-    else:
-        uafilter = "all"
-
-    # 1 = random
-    # 2 = normal
-    if options.distribution.strip().lower() == "normal":
-        disttype = 2
-    else:
-        disttype = 1
-
-    fmt = options.format
-    assert (len(fmt) > 0)
-
-    delim = options.delimiter.strip().lower()
-    if delim in ['none', 'no', 'n', 'false', 'f', 0]:
-        delim = "n"
-    elif delim in ['tab', 't']:
-        delim = "t"
-    elif delim in ['comma', 'c']:
-        delim = "c"
-    elif delim not in ['cr', 'lf', 'crlf']:
-        cmdline.error("the --linedelimiter/-l value if specified should be one of: none, no, n, false, f, tab, t, comma, c, cr, lf, or crlf.")
-        exit(1)
-
-    if options.preserve_sessions:
-        if options.ips.strip().lower() != "onetoone":
-            cmdline.error("-p (session preservation) requires that '-i onetoone' be specified as well.")
-            exit(1)
-
-    if not options.quiet:
-        if options.abort:
-            print("-a specified; will halt on the first unparseable log entry found, if any.")
-        else:
-            print("-a not specified; unparseable log entries will be skipped.")
-
-    return f, r, start_dt, end_dt, botfilter, uafilter, disttype, delim
-
-
-def get_outputfile(i, outputdir):
-    out = os.path.join(outputdir, "access.log.%d" % i if i != 0 else "access.log")
-    return out
-
-
-def new_outputfile(i, outputdir):
-    return open(get_outputfile(i, outputdir), "w+")
-
-
-def output_exists(f, outputdir):
-    for i in range(0, f-1):
-        fn = get_outputfile(i, outputdir)
-        if os.path.exists(fn):
-            return True
-    return False
-
-
-def verify_output(output, cmdline):
-    pdir = None
-    try:
-        output = (output.strip()+"/").replace("//", "/")
-        if os.path.exists(output):
-            if os.path.isfile(output):
-                cmdline.error("the output location must be a directory, not a file.")
-                exit(1)
-            pdir = os.path.dirname(output)
-            pdir = '.' if not pdir else pdir
-            if not os.access(pdir, os.W_OK):
-                cmdline.error("no write access to target directory. Check your permissions.")
-                exit(1)
-    except IOError as e:
-        cmdline.error("ERROR checking output directory access/permissions: %s", str(e))
-        exit(1)
-    return pdir
-
-
-def ua2struct(uastring):
+def uatostruct(uastring):
     return user_agents.parse(uastring.lstrip('\"').rstrip('\"'))
 
 
-def ua2structstr(uastring):
-    uap = ua2struct(uastring)
+def uatostructstr(uastring):
+    uap = uatostruct(uastring)
     return '{ "ua_string": "%s", ' \
            '"device": { "brand": "%s", "family": "%s", "model": "%s" }, ' \
            '"os": { "family": "%s", "version" : "%s", "version_string": "%s" }, ' \
@@ -344,28 +202,306 @@ def ua2structstr(uastring):
            )
 
 
-def explode_uas():
-    ualist = json.loads(uafreqlist)
-    explodeduas = []
-    for ua in ualist:
-        n = int(float(ua['percent'].strip("%"))*10.0)
-        if ua['useragent'] == "replace-with-bot":
-            uad = ua['useragent']
+class DataLoader:
+    global replaylogfile
+
+    @staticmethod
+    def _onein(choice, choicelist, default=None):
+        if not choice:
+            return default
+        choice = choice.strip().lower()
+        if choice in choicelist:
+            return choice
         else:
-            uad = ua2structstr(ua['useragent'])
-        for i in range(n):
-            explodeduas.append(uad)
-    return explodeduas
+            return default
+
+    @staticmethod
+    def _oneof(choice, choicedict, default=None):
+        return choicedict.get(choice.strip().lower(), default)
+
+    def get_outputfile(self, i):
+        return os.path.join(self.outputdir, "access.log.%d" % i if i != 0 else "access.log")
+
+    def new_outputfile(self, i):
+        return open(self.get_outputfile(i), "w+")
+
+    def output_exists(self, f):
+        for i in range(0, f - 1):
+            fn = self.get_outputfile(i)
+            if os.path.exists(fn):
+                return True
+        return False
+
+    @staticmethod
+    def replaylogfile_exists():
+        return os.path.exists(replaylogfile)
+
+    def __init__(self, cmdline, options, args):
+
+        if options.streamout:
+            options.quiet = True
+
+        if options.version or not options.quiet:
+            print("FLAN v", __version__)
+        if options.version:
+            sys.exit(0)
+
+        try:
+            assert (args[0] and (args[1] or options.streamout))
+            assert (len(args[0]) > 0 and (len(args[1]) > 0 or options.streamout))
+        except:
+            cmdline.error("please provide an example logfile to read, and either a destination output directory to write access logs to OR specify stream output with -o.")
+            exit(1)
+
+        #
+        # handle arg 0: load either the template log file or the replay log
+        #
+
+        contents = None
+        if not options.replay or not self.replaylogfile_exists():
+            try:
+                self.templatelogfile = args[0].strip()
+                for file in glob.glob(self.templatelogfile):
+                    with open(file, "r") as fp:
+                        contents = fp.readlines()
+                        fp.close()
+                # do something with file
+            except IOError as e:
+                cmdline.error("ERROR trying to read the template log file: %s", str(e))
+                exit(1)
+            if not contents:
+                cmdline.error("the template access log provided is empty.")
+                exit(1)
+        self.contents = contents
+
+        #
+        # handle arg 1: verify output location
+        #
+
+        output = None
+        if not options.streamout:
+            try:
+                output = (args[1].strip() + "/").replace("//", "/")
+                if os.path.exists(output):
+                    if os.path.isfile(output):
+                        cmdline.error("the output location must be a directory, not a file.")
+                        exit(1)
+                    output = os.path.dirname(output)
+                    output = '.' if not output else output
+                    if not os.access(output, os.W_OK):
+                        cmdline.error("no write access to target directory. Check your permissions.")
+                        exit(1)
+                else:
+                    cmdline.error("the output location does not exist or is not accessible by the current user context.")
+                    exit(1)
+            except IOError as e:
+                cmdline.error("ERROR checking output directory access/permissions: %s", str(e))
+                exit(1)
+        self.outputdir = output
+
+        #
+        # verify inputs
+        #
+
+        # -q
+        self.quiet = options.quiet
+        # -a
+        self.abort = options.abort
+        # -p
+        self.preserve_sessions = options.preserve_sessions
+        # -z
+        self.timezone = options.timezone
+        # -j
+        self.excludeuatag = options.excludeuatag
+        # -o
+        self.streamout = options.streamout
+        # -y
+        self.replay = options.replay
+        # -k
+        self.quote = options.quote
+
+        # -n
+        f = 0
+        if options.files.isdigit():
+            f = int(options.files)
+            f = 0 if f < 1 or f > 1000 else f
+        if f == 0:
+            cmdline.error("the number of files to generate must be between 1 and 1000.")
+            exit(1)
+        self.files = f
+
+        # -r
+        r = 0
+        if options.records.isdigit():
+            r = int(options.records)
+            r = 0 if r < 1 or r > 1000000 else r
+        if r == 0:
+            cmdline.error("the number of records to generate per file must be between 1 and 1000000.")
+            exit(1)
+        self.records = r
+
+        # -t
+        chk = datetime.datetime.now()
+        try:
+            x = chk.strftime(options.timeformat)
+        except:
+            cmdline.error("the -t/--timeformat format must be a valid Python strftime format. See http://strftime.com.")
+            exit(1)
+        self.timeformat = options.timeformat
+
+        # -s
+        start_dt = None
+        try:
+            start_dt = dtparser.parse(options.start_dt)
+        except:
+            pass
+        if not start_dt:
+            start_dt = datetime.datetime.combine(datetime.date.today(), datetime.datetime.min.time())
+        self.start_dt = start_dt
+
+        # -e
+        end_dt = None
+        try:
+            end_dt = dtparser.parse(options.end_dt)
+        except:
+            pass
+        if not end_dt:
+            end_dt = datetime.datetime.combine(datetime.date.today() + datetime.timedelta(days=1), datetime.datetime.min.time())
+        self.end_dt = end_dt
+
+        # -b
+        self.botfilter = self._onein(options.botfilter, ["all", "seen", "unseen"], "seen")
+        if not self.botfilter:
+            cmdline.error("the -b/--botfilter value if specified should be one of: 'all', 'seen', or 'unseen'.")
+            exit(1)
+
+        # -u
+        self.uafilter = self._onein(options.uafilter, ["all", "bots", "nobots"], "all")
+        if not self.uafilter:
+            cmdline.error("the -u/--uafilter value if specified should be one of: 'all', 'bots', or 'nobots'.")
+            exit(1)
+
+        # -d
+        # 1 = random
+        # 2 = normal
+        self.disttype = self._oneof(options.distribution, {"normal": 2, "random": 1}, 1)
+
+        # -f
+        assert (len(options.format) > 0)
+        self.format = options.format
+
+        # -l
+        self.delimiter = self._oneof(options.delimiter,
+                                     {"none": "",
+                                      "no": "",
+                                      "n": "",
+                                      "false": "",
+                                      "f": "",
+                                      "0": "",
+                                      "tab": "\t",
+                                      "t": "\t",
+                                      "comma": ",",
+                                      "c": "\r",
+                                      "cr": "\r",
+                                      "lf": "\n",
+                                      "crlf": "\r\n"},
+                                     "\r\n")
+
+        # -m
+        self.ipmapping = self._onein(options.ipmapping, ["none", "onetoone", "onetomany"], "onetomany")
+
+        # -p
+        if options.preserve_sessions:
+            if self.ipmapping != "onetoone":
+                cmdline.error("-p (session preservation) requires that '-m onetoone' be specified as well.")
+                exit(1)
+
+        # -x
+        regx = None
+        if options.regex:
+            chk = options.regex.strip()
+            try:
+                regx = re.compile(chk)
+            except:
+                cmdline.error("the regex string provided (-x '%s') is not a valid regex. See https://www.google.com/search?q=python+regex+cheat+sheet for help." % chk)
+                exit(1)
+        self.customregex = regx
+
+        # -i
+        ipmatches = []
+        if options.ipfilter:
+            lst = options.ipfilter.strip().split(",")
+            for chk in lst:
+                try:
+                    ipmatch = ipaddress.ip_network(chk) if "/" in chk else ipaddress.ip_address(chk)
+                except:
+                    cmdline.error("one or more values in the -i parameter value provided ('%s') is neither a valid IP address or network (CIDR)." % chk)
+                    exit(1)
+                ipmatches.append(ipmatch)
+        self.ipfilter = ipmatches
+
+        # -q
+        if not options.quiet:
+            if options.abort:
+                print("NOTE: -a specified; will halt on the first unparseable log entry found, if any.")
+            else:
+                print("NOTE: -a not specified; unparseable log entries will be skipped.")
+
+        if not options.overwrite and not options.streamout:
+            if self.output_exists(self.files):
+                cmdline.error("one or more target file(s) exist, and --overwrite was not specified.")
+                exit(1)
+        if not options.quiet and not options.replay:
+            print("%d lines read from %s." % (len(self.contents), args[0].strip()))
+
+        return
 
 
-def assign_ua(explodeduas):
-    return explodeduas[random.randint(0, len(explodeduas)-1)]
+class UAFactory:
+
+    @staticmethod
+    def _explode_uas():
+        ualist = json.loads(uafreqlist)
+        explodeduas = []
+        for ua in ualist:
+            n = int(float(ua['percent'].strip("%"))*10.0)
+            if ua['useragent'] == "replace-with-bot":
+                uad = ua['useragent']
+            else:
+                uad = uatostructstr(ua['useragent'])
+            for i in range(n):
+                explodeduas.append(uad)
+        return explodeduas
+
+    def __init__(self, data, template):
+        d = {}
+        uas = self._explode_uas()
+        bs = len(template.botlist) - 1
+        if bs >= 0:
+            for i in range(0, len(uas) - 1):
+                if uas[i] == "replace-with-bot":
+                    d[i] = uatostruct(template.botlist[random.randint(0, bs)])
+                else:
+                    d[i] = uatostruct(uas[i])
+        self.uas = d
+        return
+
+    def assign_ua(self):
+        return self.uas[random.randint(0, len(self.uas)-1)]
 
 
-def parse_log(contents, options, cmdline, botfilter, uafilter):
+class TemplateManager:
+    global replaylogfile
 
-    replaylogfile = os.path.join(os.path.dirname(__file__), 'flan.replay')
+    @staticmethod
+    def _ts_to_dts(ts):
+        try:
+            dts = str(datetime.datetime(int(ts[7:11]), MONTHS[ts[3:6]], int(ts[0:2]), int(ts[12:14]), int(ts[15:17]), int(ts[18:20])))
+        except:
+            dts = None
+        return dts
 
+    @staticmethod
     def _load_bot_json():
         blist = []
         try:
@@ -381,7 +517,7 @@ def parse_log(contents, options, cmdline, botfilter, uafilter):
             pass
         return blist
 
-    def _load_replay_log():
+    def _load_replay_log(self):
         replaydata = []
         try:
             for file in glob.glob(replaylogfile):
@@ -393,17 +529,17 @@ def parse_log(contents, options, cmdline, botfilter, uafilter):
             pass
         return replaydata
 
-    def _save_replay_log(replaydata, cmdline):
+    def _save_replay_log(self, replaydata, data):
         try:
             with open(replaylogfile, "wb+") as rl:
                 pickle.dump(replaydata, rl)
                 rl.close()
         except Exception as e:
-            cmdline.error("unable to save %s: %s" % (replaylogfile, str(e)))
+            data.cmdline.error("unable to save %s: %s" % (self.replaylogfile, str(e)))
             exit(1)
         return
 
-    def _get_loglineregex(fmt):
+    def _get_loglineregex(self, data):
         patterns = {}
         fields = json.loads(supported_nginx_fields)
         for field in fields:
@@ -411,265 +547,352 @@ def parse_log(contents, options, cmdline, botfilter, uafilter):
         try:
             reexpr = ''.join(
                     '(?P<%s>%s)' % (g, patterns.get(g, '.*?')) if g else re.escape(c)
-                    for g, c in re.findall(r'\$(\w+)|(.)', fmt))
+                    for g, c in re.findall(r'\$(\w+)|(.)', data.format))
             return re.compile(reexpr)
         except:
-            cmdline.error("incorrect, incomplete, or unsupported Format (-f) value provided.")
+            data.cmdline.error("incorrect, incomplete, or unsupported Format (-f) value provided.")
             exit(1)
 
-    def _parse_logline(line, lineno, rgxpat, strict):
-
-        def _ts_to_dts(ts):
-            try:
-                dts = str(datetime.datetime(int(ts[7:11]), MONTHS[ts[3:6]], int(ts[0:2]), int(ts[12:14]), int(ts[15:17]), int(ts[18:20])))
-            except:
-                dts = None
-            return dts
+    def _parse_logline(self, line, data):
 
         m = None
         line = line.rstrip()
         try:
-            m = rgxpat.match(line)
+            m = self.lineregex.match(line)
         except Exception as e:
-            if strict:
-                cmdline.error("Halting on line %d (--strict specified): %s." % (lineno, str(e)))
+            if data.abort:
+                data.cmdline.error("Halting on line %d (-a/--strict specified): %s." % (self.totread, str(e)))
                 exit(1)
-            print("Skipping unparseable line %d: %s..." % (lineno, str(e)))
+            print("Skipping unparseable line %d: %s..." % (self.totread, str(e)))
             pass
+
+        if data.customregex:
+            m = None
+            try:
+                m = data.customregex.match(line)
+            except Exception as e:
+                pass
+
         if m:
             dikt = m.groupdict()
             if "time_local" in dikt.keys():
-                dikt["_ts"] = _ts_to_dts(dikt["time_local"])
+                dikt["_ts"] = self._ts_to_dts(dikt["time_local"])
             return dikt
         else:
             return None
 
-    totread = 0
-    totok = 0
-    parsed = []
-    earliest_ts = None
-    latest_ts = None
-    botlist = []
-    if uafilter != "nobots" and botfilter != "seen":
-        botlist = _load_bot_json()
+    @staticmethod
+    def _obsfucate_ip(entry, data):
+        global ipmap, ipmap2
+        ipvXaddress = entry["_ip"]
+        isbot = entry["_isbot"]
+        # we don't obfuscate any of these
+        if ipvXaddress.is_link_local \
+                or ipvXaddress.is_loopback \
+                or ipvXaddress.is_multicast \
+                or ipvXaddress.is_private \
+                or ipvXaddress.is_reserved \
+                or isbot \
+                or data.ipmapping == "none":
+            newip = str(ipvXaddress)
+        else:
+            # obfuscate but try to preserve general geolocation, residential vs commercial, etc.
+            ipkey = str(ipvXaddress)
+            # generate a new ip if using o2m or if o2o found nothing in the map
+            # o2m may generate multiple obfuscated IPs from the same IP during the same run
+            # o2o always generates/returns the same obfuscated IP from a given input IP during the same run
+            tries = 0
+            newip = ipmap[ipkey] if data.ipmapping == "onetoone" and ipkey in ipmap.keys() else None
+            while not newip:
+                if ipvXaddress.version == 4:
+                    newip = "%s.%s" % (ipkey.rsplit(".", 1)[0], str(random.randint(0, 255)))
+                else:
+                    newip = "%s:%s" % (ipkey.rsplit(":", 1)[0], ''.join(random.choice(string.digits+"abcdef") for i in range(4)))
+                # is it a valid global ip? if not, regenerate it
+                try:
+                    chk = ipaddress.ip_address(newip)
+                    if not chk.is_global:
+                        newip = None
+                except:
+                    newip = None
+                    pass
+                if newip:
+                    if data.ipmapping == "onetoone":
+                        if newip in ipmap2.keys():
+                            newip = None
+                            tries += 1
+                            if tries == 1024:
+                                data.cmdline.error("excessive number of retries during attempt to obfuscate ip %s using one-to-one method." % ipkey)
+                                exit(0)
+                        else:
+                            ipmap[ipkey] = newip
+                            ipmap2[newip] = True
+        return newip
 
-    replaying = False
+    @staticmethod
+    def _obfuscate_ua(entry, data, uas):
+        if data.excludeuatag:
+            flantag = ""
+        else:
+            flantag = " Flan/%s (https://bret.guru/flan)" % __version__
+        if data.preserve_sessions:
+            return entry["_ua"].ua_string + flantag
+        # pick a ua from the same family of uas
+        # if there isn't one, use the one provided
+        entry_browser = entry["_ua"].browser.family
+        entry_device = entry["_ua"].device.family
+        entry_os = entry["_ua"].os.family
+        entry_is_bot = entry["_isbot"]
+        hits = [uas[x].ua_string for x in uas
+                if uas[x].browser.family == entry_browser
+                and uas[x].device.family == entry_device
+                and uas[x].os.family == entry_os
+                and uas[x].is_bot == entry_is_bot]
+        h = len(hits)
+        newua = str(hits[random.randint(0, h - 1)] if h > 0 else entry["_ua"].ua_string) + flantag
+        return newua
 
-    if options.replay:
+    def __init__(self, data):
 
-        parsed = _load_replay_log()
-        if parsed:
-            replaying = True
-            totok = len(parsed)
-            totread = totok
-            if not options.quiet:
-                print('%d preparsed entries loaded from replay log.' % totread)
+        self.replaylogfile = os.path.join(os.path.dirname(__file__), 'flan.replay')
 
-    if not replaying:
+        self.totread = 0
+        self.totok = 0
+        self.parsed = []
+        self.botlist = []
+        if data.uafilter != "nobots" and data.botfilter != "seen":
+            self.botlist = self._load_bot_json()
+        earliest_ts = None
+        latest_ts = None
 
-        lineregex = _get_loglineregex(options.format)
+        replaying = False
 
-        for entry in contents:
+        if data.replay:
 
-            totread += 1
-            parsed_line = _parse_logline(entry, totread, lineregex, options.abort)
-            if not parsed_line:
-                continue
+            self.parsed = self._load_replay_log()
+            if self.parsed:
+                replaying = True
+                self.totok = len(self.parsed)
+                self.totread = self.totok
+                if not data.quiet:
+                    print('%d preparsed entries loaded from replay log.' % self.totread)
 
-            keys = parsed_line.keys()
+        if not replaying:
 
-            if 'http_user_agent' in keys:
-                parsed_line["_ua"] = ua2struct(parsed_line["http_user_agent"])
-                if parsed_line["_ua"].is_bot:
-                    if botfilter != "unseen" and uafilter != "nobots":
-                        botlist.append(parsed_line["http_user_agent"])
-                        parsed_line["_isbot"] = True
-                    else:
-                        if not options.quiet:
-                            print('Skipping bot [excluded by -b/-u settings] found on line %d...' % totread)
-                        continue
-                elif uafilter == "bots":
-                    if not options.quiet:
-                        print('Skipping non-bot [excluded by -u setting] found on line %d...' % totread)
+            self.lineregex = self._get_loglineregex(data)
+
+            for entry in data.contents:
+
+                self.totread += 1
+                parsed_line = self._parse_logline(entry, data)
+                if not parsed_line:
                     continue
-                else:
-                    parsed_line["_isbot"] = False
 
-            if "_ts" in keys:
-                if earliest_ts:
-                    if parsed_line["_ts"] < earliest_ts:
+                keys = parsed_line.keys()
+
+                if 'http_user_agent' in keys:
+                    parsed_line["_ua"] = uatostruct(parsed_line["http_user_agent"])
+                    if parsed_line["_ua"].is_bot:
+                        if data.botfilter != "unseen" and data.uafilter != "nobots":
+                            self.botlist.append(parsed_line["http_user_agent"])
+                            parsed_line["_isbot"] = True
+                        else:
+                            if not data.quiet:
+                                print('Skipping bot [excluded by -b/-u settings] found on line %d...' % self.totread)
+                            continue
+                    elif data.uafilter == "bots":
+                        if not data.quiet:
+                            print('Skipping non-bot [excluded by -u setting] found on line %d...' % self.totread)
+                        continue
+                    else:
+                        parsed_line["_isbot"] = False
+
+                if "_ts" in keys:
+                    if earliest_ts:
+                        if parsed_line["_ts"] < earliest_ts:
+                            earliest_ts = parsed_line["_ts"]
+                    else:
                         earliest_ts = parsed_line["_ts"]
-                else:
-                    earliest_ts = parsed_line["_ts"]
-                if latest_ts:
-                    if parsed_line["_ts"] > latest_ts:
+                    if latest_ts:
+                        if parsed_line["_ts"] > latest_ts:
+                            latest_ts = parsed_line["_ts"]
+                    else:
                         latest_ts = parsed_line["_ts"]
-                else:
-                    latest_ts = parsed_line["_ts"]
 
-            if 'remote_addr' in keys:
-                parsed_line["_ip"] = ipaddress.ip_address(parsed_line["remote_addr"])
+                if 'remote_addr' in keys:
+                    ip = parsed_line["remote_addr"]
+                    if data.ipfilter:
+                        chk = ipaddress.ip_address(ip)
+                        found = False
+                        for ipmatch in data.ipfilter:
+                            # == for an address match if ipmatch is an address, in for a network match if ipmatch is a CIDR
+                            if "/" in str(ipmatch):
+                                if chk in ipmatch:
+                                    found = True
+                                    break
+                            elif chk == ipmatch:
+                                found = True
+                                break
+                        if not found:
+                            continue
 
-            parsed.append(parsed_line)
-            totok += 1
+                    parsed_line["_ip"] = ipaddress.ip_address(ip)
 
-            if not options.quiet:
-                if totread % 100 == 0:
-                    print('Parsed %d entries...' % totread)
-                
-    if totok == 0:
-        cmdline.error("no usable entries found in the log file provided based on passed parameter filters.")
-        exit(0)
+                self.parsed.append(parsed_line)
+                self.totok += 1
 
-    if not replaying and (not earliest_ts or not latest_ts):
-        cmdline.error("no timestamps found in the log file provided. Timestamps are required.")
-        exit(0)
+                if not data.quiet:
+                    if self.totread % 100 == 0:
+                        print('Parsed %d entries...' % self.totread)
 
-    if options.replay and not replaying:
-        _save_replay_log(parsed, cmdline)
+        if self.totok == 0:
+            data.cmdline.error("no usable entries found in the log file provided based on passed parameter filters.")
+            exit(0)
 
-    if botlist:
-        botlist = list(dict.fromkeys(botlist)) # remove dupes
+        if not replaying and (not earliest_ts or not latest_ts):
+            data.cmdline.error("no timestamps found in the log file provided. Timestamps are required.")
+            exit(0)
 
-    return parsed, totread, totok, botlist
+        if data.replay and not replaying:
+            self._save_replay_log(self.parsed, data)
+
+        if self.botlist:
+            self.botlist = list(dict.fromkeys(self.botlist)) # remove dupes
+        self.parsed = self.parsed
+
+        return
+
+    def generate_entry(self, timedist, timeindex, data, uas):
+        timestamp = timedist[timeindex]
+        if data.preserve_sessions:
+            # pick the next parsed entry in order, since we are preserving sessions and need to keep it in order
+            entry = self.parsed[timeindex]
+        else:
+            # pick a random parsed entry from the previously generated distribution
+            entry = self.parsed[random.randint(0, len(self.parsed) - 1)]
+        # ip obsfucation
+        ip = self._obsfucate_ip(entry, data)
+        # ua obfuscation
+        ua = self._obfuscate_ua(entry, data, uas)
+        # format the timestamp back to desired nginx $time_local format
+        ts = data.timeformat + " " + data.timezone
+        ts = timestamp.strftime(ts.rstrip())
+        # return the log string
+        return data.format. \
+            replace("$time_local", ts). \
+            replace("$remote_addr", ip). \
+            replace("$http_user_agent", ua). \
+            replace("$remote_user", entry["remote_user"]). \
+            replace("$request", entry["request"]). \
+            replace("$status", entry["status"]). \
+            replace("$body_bytes_sent", entry["body_bytes_sent"]). \
+            replace("$http_referer", entry["http_referer"])
 
 
-def make_distribution(disttype, f, r, start_dt, end_dt):
-    seconds = int((end_dt - start_dt).total_seconds())
-    midpoint = round(seconds / 2.0) if disttype == 2 else None
-    tot2write = f * r
+def makedistribution(data):
+    seconds = int((data.end_dt - data.start_dt).total_seconds())
+    midpoint = round(seconds / 2.0) if data.disttype == 2 else None
+    tot2write = data.files * data.records
     aps = tot2write / seconds
-    if disttype == 2:
+    if data.disttype == 2:
         # normal distribution with a bit of randomization
         normal_distribution = np.random.normal(midpoint, 0.1666 * seconds, tot2write)
-        time_distribution = [start_dt + datetime.timedelta(seconds=int(val))
+        time_distribution = [data.start_dt + datetime.timedelta(seconds=int(val))
                              if 0.00 <= val <= seconds
-                             else start_dt + datetime.timedelta(seconds=random.randint(0, seconds))
+                             else data.start_dt + datetime.timedelta(seconds=random.randint(0, seconds))
                              for val in normal_distribution]
     else:
         # random dist
-        time_distribution = [start_dt + datetime.timedelta(seconds=int(val)) for val in np.random.randint(seconds, size=tot2write)]
+        time_distribution = [data.start_dt + datetime.timedelta(seconds=int(val)) for val in np.random.randint(seconds, size=tot2write)]
     time_distribution.sort()  # chronological order
     return tot2write, time_distribution, aps
 
 
-def make_uas(botlist):
-    d = {}
-    uas = explode_uas()
-    bs = len(botlist) - 1
-    if bs >= 0:
-        for i in range(0, len(uas) - 1):
-            if uas[i] == "replace-with-bot":
-                d[i] = ua2struct(botlist[random.randint(0, bs)])
+def makeflan(cmdline, options, args):
+
+    # verify parameters, and load the template log file or replay log
+    data = DataLoader(cmdline, options, args)
+
+    # parse and store the template log file data line by line
+    manager = TemplateManager(data)
+
+    # if preserving sessions, the number of generated entries must = the number in the template log
+    if data.preserve_sessions:
+        data.records = int(manager.totok * 1.0 / data.files)
+        if not data.quiet:
+            print("NOTE: -p (preserve sessions) specified. Matching template log, setting -r (the number of records per file) = %d * %d files = "
+                  "%d total records will be generated." % (data.records, data.files,data.records * data.files) )
+    #
+    # Build the time slice distribution to attribute fake log entries to
+    #
+    tot2write, time_distribution, aps = makedistribution(data)
+
+    #
+    # Populate ua list with frequency-appropriate selection of bots actually seen in the template log
+    #
+    uas = UAFactory(data, manager)
+
+    if not data.quiet:
+        print('Parsed and prepped a total of %d entries (%d successfully, %d skipped).' % (manager.totread, manager.totok, manager.totread - manager.totok))
+
+    #
+    # Generate the requested fake logs!
+    #
+    data.files = data.files - 1
+    totthisfile = 0
+    totwritten = 0
+    i = 0
+    timespan = []
+    log = None
+    while totwritten < tot2write:
+        if not log:
+            if data.streamout:
+                log = sys.stdout
+                timespan = time_distribution
             else:
-                d[i] = ua2struct(uas[i])
-    return d
+                log = data.new_outputfile(data.files)
+                if not data.quiet:
+                    print('Beginning write of fake entries to log %s.' % log.name)
+                # pop the oldest r timestamps from the timestamp distribution and use them on the current log file
+                timespan = time_distribution[:data.records]
+                time_distribution = time_distribution[data.records:]
+                i = 0
+        if data.quote:
+            log.write("'%s'%s" % (manager.generate_entry(timespan, i, data, uas.uas), data.delimiter))
+        else:
+            log.write("%s%s" % (manager.generate_entry(timespan, i, data, uas.uas), data.delimiter))
+        totthisfile += 1
+        totwritten += 1
+        i += 1
+        if not data.quiet:
+            if totthisfile % 100 == 0:
+                print('Wrote %d entries...' % totthisfile)
+        if not data.streamout:
+            if totthisfile == data.records:
+                if not data.quiet:
+                    print('Log %s completed.' % log.name)
+                log.close()
+                log = None
+                data.files -= 1
+                totthisfile = 0
 
+    if log and not data.streamout:
+        if not log.closed:
+            log.close()
+        if not data.quiet:
+            print('Log %s completed.' % log.name)
 
-def obsfucate_ip(entry, options, cmdline):
-    global ipmap, ipmap2
-    ipvXaddress = entry["_ip"]
-    isbot = entry["_isbot"]
-    # we don't obfuscate any of these
-    if ipvXaddress.is_link_local \
-            or ipvXaddress.is_loopback \
-            or ipvXaddress.is_multicast \
-            or ipvXaddress.is_private \
-            or ipvXaddress.is_reserved \
-            or isbot:
-        newip = str(ipvXaddress)
-    else:
-        # obfuscate but try to preserve general geolocation, residential vs commercial, etc.
-        ipmapping = "onetomany" if options.ips.strip().lower() != "onetoone" else "onetoone"
-        ipkey = str(ipvXaddress)
+    if not data.quiet:
+        print('Total of %d record(s) written successfully from %d parsed template entries.' % (totwritten, manager.totok))
+        print('Log generation completed.')
 
-        # generate a new ip if using o2m or if o2o found nothing in the map
-        # o2m may generate multiple obfuscated IPs from the same IP during the same run
-        # o2o always generates/returns the same obfuscated IP from a given input IP during the same run
-        tries = 0
-        newip = ipmap[ipkey] if ipmapping == "onetoone" and ipkey in ipmap.keys() else None
-        while not newip:
-            if ipvXaddress.version == 4:
-                newip = "%s.%s" % (ipkey.rsplit(".", 1)[0], str(random.randint(0, 255)))
-            else:
-                newip = "%s:%s" % (ipkey.rsplit(":", 1)[0], ''.join(random.choice(string.digits+"abcdef") for i in range(4)))
-            # is it a valid global ip? if not, regenerate it
-            try:
-                chk = ipaddress.ip_address(newip)
-                if not chk.is_global:
-                    newip = None
-            except:
-                newip = None
-                pass
-            if newip:
-                if ipmapping == "onetoone":
-                    if newip in ipmap2.keys():
-                        newip = None
-                        tries += 1
-                        if tries == 1024:
-                            cmdline.error("excessive number of retries during attempt to obfuscate ip %s using one-to-one method." % ipkey)
-                            exit(0)
-                    else:
-                        ipmap[ipkey] = newip
-                        ipmap2[newip] = True
-
-    return newip
-
-
-def obfuscate_ua(entry, uas, options):
-    if options.excludeuatag:
-        flantag = ""
-    else:
-        flantag = " Flan/%s(https://bret.guru/flan)" % __version__
-    if options.preserve_sessions:
-        return entry["_ua"].ua_string + flantag
-    # pick a ua from the same family of uas
-    # if there isn't one, use the one provided
-    entry_browser = entry["_ua"].browser.family
-    entry_device = entry["_ua"].device.family
-    entry_os = entry["_ua"].os.family
-    entry_is_bot = entry["_isbot"]
-    hits = [uas[x].ua_string for x in uas
-            if uas[x].browser.family == entry_browser
-            and uas[x].device.family == entry_device
-            and uas[x].os.family == entry_os
-            and uas[x].is_bot == entry_is_bot]
-    h = len(hits)
-    newua = str(hits[random.randint(0, h - 1)] if h > 0 else entry["_ua"].ua_string) + flantag
-    return newua
-
-
-def generate_entry(timedist, timeindex, parsed, uas, options, cmdline):
-    timestamp = timedist[timeindex]
-    if options.preserve_sessions:
-        # pick the next parsed entry in order, since we are preserving sessions and need to keep it in order
-        entry = parsed[timeindex]
-    else:
-        # pick a random parsed entry from the previously generated distribution
-        entry = parsed[random.randint(0, len(parsed)-1)]
-    # ip obsfucation
-    ip = obsfucate_ip(entry, options, cmdline)
-    # ua obfuscation
-    ua = obfuscate_ua(entry, uas, options)
-    # format the timestamp back to desired nginx $time_local format
-    ts = options.timeformat+" "+options.timezone
-    ts = timestamp.strftime(ts.rstrip())
-    # return the log string
-    return options.format.\
-        replace("$time_local", ts).\
-        replace("$remote_addr", ip).\
-        replace("$http_user_agent", ua).\
-        replace("$remote_user", entry["remote_user"]).\
-        replace("$request", entry["request"]).\
-        replace("$status", entry["status"]).\
-        replace("$body_bytes_sent", entry["body_bytes_sent"]).\
-        replace("$http_referer", entry["http_referer"])
+    return
 
 
 def main():
     # command-line parsing
     cmdline = OptionParser(usage="usage: %prog [options] examplelogfile outputdirectory",
-                           description="Create one or more Nginx access.log(.#) file(s) from a single real-world example access.log file.")
+                           description="Create one or more 'fake' Apache or Nginx access.log(.#) file(s) from a single real-world example access.log file.")
     cmdline.add_option("-a",
                        action="store_true",
                        dest="abort",
@@ -691,37 +914,49 @@ def main():
                             "one of: random (distribute log entries randomly between start and end dates), "
                             "normal (distribute using a normal distribution with the peak in the middle of the start/end range). Default=normal.")
     cmdline.add_option("-e", "--end",
-                      action="store",
-                      dest="end_dt",
-                      help='Latest datetime YYYY-MM-DD HH24:MI:SS to provide in the generated log files. Defaults to midnight tomorrow.')
+                       action="store",
+                       dest="end_dt",
+                       help='Latest datetime YYYY-MM-DD HH24:MI:SS to provide in the generated log files. Defaults to midnight tomorrow.')
     cmdline.add_option("-f", "--format",
-                      action="store",
-                      dest="format",
-                      default='$remote_addr - $remote_user [$time_local] \"$request\" $status $body_bytes_sent \"$http_referer\" \"$http_user_agent\"',
-                      help='Format of the long entry line. Default is: \'$remote_addr - $remote_user [$time_local] \"$request\" '
-                           '$status $body_bytes_sent \"$http_referer\" \"$http_user_agent\"\'', )
-    cmdline.add_option("-i", "--ipmapping",
-                      action="store",
-                      dest="ips",
-                      default='onetomany',
-                      help='Obfuscation rule to use for IPs, one of: onetomany=map one IPv4 to up to 255 IPv4 /24 addresses or '
-                           'one IPv6 to up to 65536 IPv6 /116 addresses, onetoone=map one IPv4/IPv6 address to one IPv4/IPv6 address '
-                           'within the same /24 or /116 block. Default=onetomany.', )
+                       action="store",
+                       dest="format",
+                       default='$remote_addr - $remote_user [$time_local] \"$request\" $status $body_bytes_sent \"$http_referer\" \"$http_user_agent\"',
+                       help='Format of the long entry line. Default is: \'$remote_addr - $remote_user [$time_local] \"$request\" '
+                            '$status $body_bytes_sent \"$http_referer\" \"$http_user_agent\"\'', )
+    cmdline.add_option("-i", "--ipfilter",
+                       action="store",
+                       dest="ipfilter",
+                       default="",
+                       help="If provided, this should specify one or more optional IP(s) and/or CIDR range(s) in quotes that all entries in the template log file must "
+                            "match in order to be used for output log generation. Only lines containing an IP that matches one or more of these will "
+                            "be used. Separate one or more IPs or CIDRs here by commas; for example, '--ipfilter \"123.4.5.6,145.0.0.0/16,2001:db8::/48\"'. "
+                            "If not provided, use all otherwise valid template log lines in generating the output logs.")
+    cmdline.add_option("--nouatag",
+                       action="store_true",
+                       dest="excludeuatag",
+                       help="If specified, does not append the custom 'Flan/%s' tag to all of the user agents in the generated file(s). Default=append the tag to all UAFactory." % __version__)
     cmdline.add_option("-k",
-                      action="store_true",
-                      dest="quote",
-                      help="If specified, add single quotes to the beginning and end of every generated log entry line. Default=no quotes added.", )
+                       action="store_true",
+                       dest="quote",
+                       help="If specified, add single quotes to the beginning and end of every generated log entry line. Default=no quotes added.", )
     cmdline.add_option("-l", "--linedelimiter",
-                      action="store",
-                      dest="delimiter",
-                      default='crlf',
-                      help="Line delimiter to append to all generated log entries, one of: [none, no, false, n, f], [comma, c], [tab, t], cr, lf, or crlf. Default=crlf.", )
+                       action="store",
+                       dest="delimiter",
+                       default='crlf',
+                       help="Line delimiter to append to all generated log entries, one of: [none, no, false, n, f], [comma, c], [tab, t], cr, lf, or crlf. Default=crlf.", )
+    cmdline.add_option("-m", "--ipmapping",
+                       action="store",
+                       dest="ipmapping",
+                       default='onetomany',
+                       help='Obfuscation rule to use for IPs, one of: onetomany=map one IPv4 to up to 255 IPv4 /24 addresses or '
+                            'one IPv6 to up to 65536 IPv6 /116 addresses, onetoone=map one IPv4/IPv6 address to one IPv4/IPv6 address '
+                            'within the same /24 or /116 block, off=do not obfuscate IPs. Default=onetomany.', )
     cmdline.add_option("-n", "--numfiles",
-                      action="store",
-                      dest="files",
-                      default="1",
-                      help="Number of access.log(.#) file(s) to output. Default=1, min=1, max=1000. Example: '-n 4' creates access.log, "
-                           "access.log.1, access.log.2, and access.log.3 in the output directory.", )
+                       action="store",
+                       dest="files",
+                       default="1",
+                       help="Number of access.log(.#) file(s) to output. Default=1, min=1, max=1000. Example: '-n 4' creates access.log, "
+                            "access.log.1, access.log.2, and access.log.3 in the output directory.", )
     cmdline.add_option("-o",
                        action="store_true",
                        dest="streamout",
@@ -731,35 +966,39 @@ def main():
                        action="store_true",
                        dest="preserve_sessions",
                        help="If specified, preserve sessions (specifically, pathing order for a given IP/UA/user combo). "
-                            "'-i onetoone' must also be specified for this to work."
+                            "'-m onetoone' must also be specified for this to work."
                             "If not specified (the default), do not preserve sessions.")
+    cmdline.add_option("--profile",
+                       action="store_true",
+                       dest="profile",
+                       help="If specified, prints speed profile information for flan.py execution to stdout. Default=do not profile.")
     cmdline.add_option("-q",
                        action="store_true",
                        dest="quiet",
                        help="Basho-like stdout. Default=Proust-like stdout.")
     cmdline.add_option("-r", "--records",
-                      action="store",
-                      dest="records",
-                      default="10000",
-                      help="Number of records (entries) to create per generated access.log(.#) file. Default=10000, min=1, max=1000000.", )
+                       action="store",
+                       dest="records",
+                       default="10000",
+                       help="Number of records (entries) to create per generated access.log(.#) file. Default=10000, min=1, max=1000000.", )
     cmdline.add_option("-s", "--start",
-                      action="store",
-                      dest="start_dt",
-                      help='Earliest datetime YYYY-MM-DD HH24:MI:SS to provide in the generated log files. Defaults to midnight today.' )
+                       action="store",
+                       dest="start_dt",
+                       help='Earliest datetime YYYY-MM-DD HH24:MI:SS to provide in the generated log files. Defaults to midnight today.')
     cmdline.add_option("-t", "--timeformat",
-                      action="store",
-                      dest="timeformat",
-                      default="%-d/%b/%Y:%H:%M:%S",
-                      help="Timestamp format to use in the generated log file(s), EXCLUDING TIMEZONE (see -z parameter), "
-                           "in Python strftime format (see http://strftime.org/). Default='%-d/%b/%Y:%H:%M:%S'", )
+                       action="store",
+                       dest="timeformat",
+                       default="%-d/%b/%Y:%H:%M:%S",
+                       help="Timestamp format to use in the generated log file(s), EXCLUDING TIMEZONE (see -z parameter), "
+                            "in Python strftime format (see http://strftime.org/). Default='%-d/%b/%Y:%H:%M:%S'", )
     cmdline.add_option("-u", "--uafilter",
                        action="store",
                        dest="uafilter",
                        default="all",
-                       help="FIlter generate log entries by UA, one of: all=use BOTH bot and non-bot UAs and template "
-                            "log entries with bot/non-bot UAs when creating the generated log entries, "
-                            "bots=use ONLY bot UAs and template log entries with bot UAs when creating the generated log entries, "
-                            "nobots=use ONLY non-bot UAs and template log entries with non-bot UAs when creating the generated log entries. "
+                       help="Filter generate log entries by UA, one of: all=use BOTH bot and non-bot UAFactory and template "
+                            "log entries with bot/non-bot UAFactory when creating the generated log entries, "
+                            "bots=use ONLY bot UAFactory and template log entries with bot UAFactory when creating the generated log entries, "
+                            "nobots=use ONLY non-bot UAFactory and template log entries with non-bot UAFactory when creating the generated log entries. "
                             "Default=all.")
     cmdline.add_option("-v",
                        action="store_true",
@@ -770,135 +1009,33 @@ def main():
                        dest="overwrite",
                        help="If specified, delete any generated log files if they already exist. "
                             "If not specified (the default), exit with an error if any log file to be generated already exists.")
-    cmdline.add_option("-x",
-                       action="store_true",
-                       dest="excludeuatag",
-                       help="If specified, does not append the custom 'Flan/%s' tag to all of the user agents in the generated file(s). Default=append the tag to all UAs." % __version__)
+    cmdline.add_option("-x", "--regex",
+                       action="store",
+                       dest="regex",
+                       default="",
+                       help="Specifies an optional (Python) regex that all template log file lines must match to be used in generating "
+                            "the log files. TemplateManager log entries that do not match this regex are ignored. "
+                            "If not specified, use all otherwise valid template log lines in generating the output logs.")
     cmdline.add_option("-y",
                        action="store_true",
                        dest="replay",
                        help="If specified, saves the parsed log file in a replay log (called 'flan.replay' in the current directory) "
-                            "for faster subsequent reload and execution on the same data." )
+                            "for faster subsequent reload and execution on the same data.")
     tz = datetime.datetime.now(timezone.utc).astimezone().strftime('%z')
     cmdline.add_option("-z", "--timezone",
-                      action="store",
-                      dest="timezone",
-                      default=tz,
-                      help="Timezone offset in (+/-)HHMM format to append to timestamps in the generated log file(s), "
-                           "or pass '' to specify no timezone. Default=your current timezone (%s)." % tz, )
-
+                       action="store",
+                       dest="timezone",
+                       default=tz,
+                       help="Timezone offset in (+/-)HHMM format to append to timestamps in the generated log file(s), "
+                            "or pass '' to specify no timezone. Default=your current timezone (%s)." % tz)
 
     options, args = cmdline.parse_args()
 
-    if options.streamout:
-        options.quiet = True
-
-    if options.version or not options.quiet:
-        print("FLAN v", __version__)
-    if options.version:
-        sys.exit(0)
-
-    try:
-        assert (args[0] and (args[1] or options.streamout))
-        assert (len(args[0]) > 0 and (len(args[1]) > 0 or options.streamout))
-    except:
-        cmdline.error("please provide an example logfile to read, and either a destination output directory to write access logs to OR specify stream output with -o.")
-        exit(1)
-
-    #
-    # check provided options and arguments and perform quality/sanity checks
-    #
-    contents = get_input(args[0], options, cmdline)
-    outputdir = verify_output(args[1], cmdline) if not options.streamout else None
-    totfiles, totperfile, start_dt, end_dt, botfilter, uafilter, disttype, delim = verify_input(options, cmdline)
-    if not options.overwrite and not options.streamout:
-        if output_exists(totfiles, outputdir):
-            cmdline.error("one or more target file(s) exist, and --overwrite was not specified.")
-            exit(1)
-    if not options.quiet and not options.replay:
-        print("%d lines read from %s." % (len(contents), args[0].strip()))
-
-    #
-    # Parse-and-store
-    #
-    parsed, totread, totok, botlist = parse_log(contents, options, cmdline, botfilter, uafilter)
-
-    if options.preserve_sessions:
-        totperfile = int(totok * 1.0 / totfiles)
-        if not options.quiet:
-            print("NOTE: -p (preserve sessions) specified; adjusting -r (the number of records per file) to %d to match "
-                  "the size of the template file." % totperfile)
-
-    #
-    # Build the time slice distribution to attribute fake log entries to
-    #
-    tot2write, time_distribution, aps = make_distribution(disttype, totfiles, totperfile, start_dt, end_dt)
-    
-    #
-    # Populate ua list with frequency-appropriate selection of bots actually seen in the example log file provided
-    #
-    uas = make_uas(botlist)
-
-    if not options.quiet:
-        print('Parsed and prepped a total of %d entries (%d successfully, %d skipped).' % (totread, totok, totread - totok))
-
-    #
-    # Generate the requested fake logs from what we have
-    #
-    delim = '' if delim == 'n' \
-        else '\t' if delim == 't' \
-        else ',' if delim == 'c' \
-        else '\r' if delim == 'cr' \
-        else '\n' if delim == 'lf' \
-        else '\r\n'
-    totfiles = totfiles - 1
-    totthisfile = 0
-    totwritten = 0
-    i = 0
-    timespan = []
-    log = None
-    while totwritten < tot2write:
-        if not log:
-            if options.streamout:
-                log = sys.stdout
-                timespan = time_distribution
-            else:
-                log = new_outputfile(totfiles, outputdir)
-                if not options.quiet:
-                    print('Beginning write of fake entries to log %s.' % log.name)
-                # pop the oldest r timestamps from the timestamp distribution and use them on the current log file
-                timespan = time_distribution[:totperfile]
-                time_distribution = time_distribution[totperfile:]
-                i = 0
-        if options.quote:
-            log.write("'%s'%s" % (generate_entry(timespan, i, parsed, uas, options, cmdline), delim))
-        else:
-            log.write("%s%s" % (generate_entry(timespan, i, parsed, uas, options, cmdline), delim))
-        totthisfile += 1
-        totwritten += 1
-        i += 1
-        if not options.quiet:
-            if totthisfile % 100 == 0:
-                print('Wrote %d entries...' % totthisfile)
-        if not options.streamout:
-            if totthisfile == totperfile:
-                if not options.quiet:
-                    print('Log %s completed.' % log.name)
-                log.close()
-                log = None
-                totfiles -= 1
-                totthisfile = 0
-
-    if log and not options.streamout:
-        if not log.closed:
-            log.close()
-        if not options.quiet:
-            print('Log %s completed.' % log.name)
-
-    if not options.quiet:
-        print('Total of %d record(s) written successfully from %d parsed template entries.' % (totwritten, totok))
-        print('Log generation completed.')
-
+    if options.profile:
+        import cProfile
+        cProfile.runctx('makeflan(cmdline, options, args)', globals(), locals())
+    else:
+        makeflan(cmdline, options, args)
     exit(0)
 
 
