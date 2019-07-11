@@ -89,7 +89,7 @@ v0.0.5<br>
 Option to stream log generation to stdout.
 
 v0.0.6<br>
-Refactored into classes
+Refactored into classes; added "none" option to -m flag (IP obfuscation) to allow non-obfuscated IPs
 
 
 ### Future Enhancements
