@@ -42,17 +42,17 @@ _IP addresses_<br>Global addresses in the template log are obfuscated: the last 
 
 Non-global IPs (private, loopback, etc) are kept as-is. All generated IPs are guaranteed valid: for example, 192.168.0.0 is a network identifier and is never assigned to an interface, and 169.254.0.0/16 link-locals aren't routable, so it won't use any of those. 
 
-The -i parameter allows you to obfuscate IPs using either a one-to-many or one-to-one mapping. One-to-many will obfuscate the same IP to one or multiple random IPs in the resulting log files. One-to-one will ensure that IP "X" is obfuscated to the same IP "Y" every time during any given run. One-to-one mappings are not preserved between runs.
+The -m parameter allows you to obfuscate IPs using either a one-to-many or one-to-one mapping. One-to-many will obfuscate the same IP to one or multiple random IPs in the resulting log files. One-to-one will ensure that IP "X" is obfuscated to the same IP "Y" every time during any given run. One-to-one mappings are not preserved between runs.
 
 _User Agents_<br>A basic bot-or-not check is made on all user agents in the template log. All user agents identified as bots are extracted and optionally replayed as-is into your generated fake logs, with their real originating IPs. 
 
-Real-device agents are generated from a list of the top real-world user agents in the wild, weighted by frequency of occurrence, and matching the distribution of browser, os, and desktop/mobile possibilities that are found in your template log. If your template log contains only mobile Safari UAs, all you will see in your generated logs is mobile Safari UAs. If you have 70% mobile Chrome and 30% desktop all others in your template log, you will get that. 
+Real-device agents are generated from a list of the top real-world user agents in the wild, weighted by frequency of occurrence, and matching the distribution of browser, os, and desktop/mobile possibilities that are found in your template log. If your template log contains only mobile Safari UAFactory, all you will see in your generated logs is mobile Safari UAFactory. If you have 70% mobile Chrome and 30% desktop all others in your template log, you will get that. 
 
-You have the ability to control what percentage of bots vs non-bot UAs you get (currently, this is hard-coded to what I use, 21.9% bots and 78.1% everything else, but that's easy to change). You can optionally include bots from a list of common bots found in the supplied user-agents.json file, an d/or optionally include only those bots that are found in your template file, or you can choose to include no bots at all. The -u and -b commandline parameters control what bots if any appear. See the commandline parameter descriptions for details. 
+You have the ability to control what percentage of bots vs non-bot UAFactory you get (currently, this is hard-coded to what I use, 21.9% bots and 78.1% everything else, but that's easy to change). You can optionally include bots from a list of common bots found in the supplied user-agents.json file, an d/or optionally include only those bots that are found in your template file, or you can choose to include no bots at all. The -u and -b commandline parameters control what bots if any appear. See the commandline parameter descriptions for details. 
 
 ### IP/User Agent Examples:
 
-1. One template log entry with IP 123.4.5.6, Chromebook Mac UA is expanded to one or more generated entries with IPs in the range 123.4.5.0/24 (bc it's global) + Chromebook Mac UAs
+1. One template log entry with IP 123.4.5.6, Chromebook Mac UA is expanded to one or more generated entries with IPs in the range 123.4.5.0/24 (bc it's global) + Chromebook Mac UAFactory
 
 2. One template log entry with IP 10.1.2.3, Linux, curl UA is expanded to one or more generated entries with IP 10.1.2.3 (bc it's private) + the same Linux curl UA
 
@@ -77,10 +77,10 @@ v0.0.1<br>
 Including bots not in the template log from a list of bots commonly seen in the wild by frequency commonly seen via the user-agent.json file and appropriate -b and -u parameter settings.
 
 v0.0.2<br>
-Partial preservation and/or generation of user "sessions" (in the context of an access.log, really just the clustering of repeated, order-significant IP/UA combos following a semantically sound series of request paths) in the generated logs via the -i onetoone setting.
+Partial preservation and/or generation of user "sessions" (in the context of an access.log, really just the clustering of repeated, order-significant IP/UA combos following a semantically sound series of request paths) in the generated logs via the -m onetoone setting.
 
 v0.0.3<br>
-Full session preservation support via the -p and -i parameters (see below).
+Full session preservation support via the -p and -m parameters (see below).
 
 v0.0.4<br>
 Replay logs.
@@ -121,24 +121,26 @@ flan.py [arguments] template.log outputdir
 | ------------------- |:---------------------------------------| ------------- |
 | -a    | If specified, halt on any (i.e. the first) unparseable entries in your template log. | Skip any&all unparseable entries |
 | -b,<br>--botfilter     | Iff -u is set to 'all' or 'bot', defines which bots appear in the generated log files, one of: seen=only use bots that appear in the template log file and are identifiable as robotic, unseen=only use bots found in the user-agents.json file (if used, this should be located in the same directory as flan.py), all=use bots from both the template log and the user-agents.json file. | seen |
-| -d,<br>--distribution | Normal=use a normal distribution centered midway between start and end datetimes for the time dimension. Random=use a random ("shotgun blast") distribution. | Normal |
+| -d,<br>--distribution | One of: normal=use a normal distribution centered midway between start and end datetimes for the time dimension, random=use a random ("shotgun blast") distribution. | normal |
 | -e,<br>--end | Specifies the end datetime to use for the generated log entries. All log entries will have a timestamp on or before this date. | Midnight tomorrow local/server time |
 | -f,<br>--format | Your Apache/NGINX log entry format string. | '$remote_addr - $remote_user [$time_local] \"$request\" $status $body_bytes_sent \"$http_referer\" \"$http_user_agent\"' |
 | -h | Print out these options on the commandline. | |
-| -i,<br>--ipmapping | Defines how IPs are obfuscated, one of: onetomany=one template log IP is mapped to one or more obfuscated IPs in the generated logs; this is the most random obfuscation but destroys sessions. onetoone=maps every template log IP to a single obfuscated IP in the generated logs, preserving sessions. | onetomany |
+| -i,<br>--ipfilter | If provided, this should specify one or more optional IP(s) and/or CIDR range(s) in quotes that all entries in the template log file must match in order to be used for output log generation. Only lines containing an IP that matches one or more of these will be used. Separate one or more IPs or CIDRs here by commas; for example, '--ipfilter \"123.4.5.6,145.0.0.0/16,2001:db8::/48\"'. | Use all otherwise eligible template log lines and their IPs in generating the output logs. |
+| --nouatag | If specified, excludes the "Flan/v#(https://bret.guru/flan)" from the user agent values in the generated log files (leave the UAFactory as-is). | Append the Flan UA tag to the generated UAFactory. |
 | -k | If specified, add single quotes to the beginning and end of every generated log entry line. | Do not add quotes. |
 | -l,<br>--linedelimiter | Line delimiter to append to all generated log entries, one of: [None, No, False, N, F], [Comma, C], [Tab, T], CR, LF, or CRLF.| CRLF |
+| -m,<br>--ipmapping | Defines how IPs are obfuscated, one of: onetomany=one template log IP is mapped to one or more obfuscated IPs in the generated logs; this is the most random obfuscation but destroys sessions. onetoone=maps every template log IP to a single obfuscated IP in the generated logs, preserving sessions. | onetomany |
 | -n,<br>--numfiles | The total number of access.log files to generate. Min=1, Max=1000. Example: '-n 4' creates access.log, access.log.1, access.log.2, and access.log.3 in the output directory. | 1 |
 | -o | Stream mode. If specified, ignores the output directory and -n flag values, enables quiet mode (-q), and streams all output to stdout. | Output is written to file(s) in the output directory provided. |
-| -p | Session preservation. If specified, preserves sessions as follows: 1. Ignores the -r setting and generates as many records as exist in the template log file; 2. Maintains the time index order of the request paths in the template log in the generated logs; 3. Maintains the UA for each IP found in the template log. Requires '-i onetoone' to maintain IP one-to-one mapping so session IPs are preserved. If not specified, request paths are randomly assigned throughout the generated time distribution, destroying sessions. | Do not preserve sessions. |
+| -p | Session preservation. If specified, preserves sessions as follows: 1. Ignores the -r setting and generates as many records as exist in the template log file; 2. Maintains the time index order of the request paths in the template log in the generated logs; 3. Maintains the UA for each IP found in the template log. Requires '-m onetoone' to maintain IP one-to-one mapping so session IPs are preserved. If not specified, request paths are randomly assigned throughout the generated time distribution, destroying sessions. | Do not preserve sessions. |
 | -q | Basho-like stdout. | Proust-like stdout. |
 | -r,<br>--records | The number of entries to write per generated log file. Min=1, Max=1M. | 10,000 |
 | -s,<br>--start | Specifies the start datetime to use for the generated log entries. All log entries will have a timestamp on or after this date. | Midnight today local/server time |
 | -t,<br>--timeformat | Timestamp format to use in the generated log file(s), EXCLUDING TIMEZONE (see -z parameter), in Python strftime format (see http://strftime.org/). | '%-d/%b/%Y:%H:%M:%S' |
-| -u,<br>--uafilter | Defines the kinds of user agents to generate in the log files, one of: bots=use bot UAs only, nonbots=use non-bot UAs only, all=use both bot and non-bot UAs. | all |
+| -u,<br>--uafilter | Defines the kinds of user agents to generate in the log files, one of: bots=use bot UAFactory only, nonbots=use non-bot UAFactory only, all=use both bot and non-bot UAFactory. | all |
 | -v | Print version number and immediately exit. | |
 | -w | If specified, overwrites any generated log file(s) that already exist. This check is made before writing anything. | Error if any already exist, leaving any & all of them unchanged. |
-| -x | If specified, excludes the "Flan/v#(https://bret.guru/flan)" from the user agent values in the generated log files (leave the UAs as-is). | Append the Flan UA tag to the generated UAs. |
+| -x,<br>--regex | Custom regex matching. Specifies a custom regex to use as a line-by-line filter for entries in the template log. Only lines that match the regex are included in log generation; lines that do not match are excluded. | All otherwise eligible lines in the template log file are used to generate logs. |
 | -y | Replay logging. If specified, enables the replay log. Replay logging parses the template log file on first execution and stores the parsed results in a binary 'flan.replay' file located in the same directory as flan.py. On subsequent execution, Flan will load the already-parsed replay log rather than reparse the template log file, saving lots of time when reusing the same large template log repeatedly. Once created, the replay log is never overwritten or deleted; delete it manually first to recreate it on the next Flan run, if needed. If a replay log exists but -y is not specified, the replay log is ignored (neither read nor overwritten).| Do not use replay logs; parse the template log every time and ignore any existing replay log. |
 | -z,<br>--timezone | Timezone offset in (+/-)HHMM format to append to timestamps in the generated log file(s), or pass '' to specify no timezone. | Your current local/server timezone. |
 
