@@ -15,7 +15,7 @@ import numpy as np
 import pickle
 import gzip
 
-__version__ = "0.0.7"
+__version__ = "0.0.8"
 
 MONTHS = {
     'Jan': 1,
@@ -247,6 +247,15 @@ class DataLoader:
     def replaylogfile_exists():
         return os.path.exists(replaylogfile)
 
+    def printstats(self):
+        if self.stats and not self.streamout:
+            print('Distribution Stats')
+            for d in range(1, self.delta + 1):
+                print('  Day %d' % d)
+                for h in range(0, 24):
+                    print('      Hour %d:\t%d' % (h, self.stats[d][h]))
+        return
+
     def __init__(self, cmdline, options, args):
 
         if options.streamout:
@@ -392,6 +401,9 @@ class DataLoader:
             end_dt = datetime.datetime.combine(datetime.date.today() + datetime.timedelta(days=1), datetime.datetime.min.time())
         self.end_dt = end_dt
 
+        delta = end_dt - start_dt
+        self.delta = delta.days
+
         # -b
         self.botfilter = self._onein(options.botfilter, ["all", "seen", "unseen"], "seen")
         if not self.botfilter:
@@ -465,6 +477,17 @@ class DataLoader:
                     exit(1)
                 ipmatches.append(ipmatch)
         self.ipfilter = ipmatches
+
+        # --stats
+        if options.stats:
+            # initialize the stats counters with zeros
+            self.stats = {}
+            for d in range(1, self.delta + 1):
+                self.stats[d] = {}
+                for h in range(0, 24):
+                    self.stats[d][h] = 0
+        else:
+            self.stats = None
 
         # -q
         if not options.quiet:
@@ -805,6 +828,10 @@ class TemplateManager:
         # format the timestamp back to desired nginx $time_local format
         ts = data.timeformat + " " + data.timezone
         ts = timestamp.strftime(ts.rstrip())
+        # update stats
+        if data.stats:
+            delta = timestamp - data.start_dt
+            data.stats[delta.days + 1][timestamp.hour] += 1
         # return the log string
         return data.format. \
             replace("$time_local", ts). \
@@ -824,7 +851,7 @@ def makedistribution(data):
     aps = tot2write / seconds
     if data.disttype == 2:
         # normal distribution with a bit of randomization
-        normal_distribution = np.random.normal(midpoint, 0.1666 * seconds, tot2write)
+        normal_distribution = np.random.normal(midpoint, 0.1866 * seconds, tot2write)
         time_distribution = [data.start_dt + datetime.timedelta(seconds=int(val))
                              if 0.00 <= val <= seconds
                              else data.start_dt + datetime.timedelta(seconds=random.randint(0, seconds))
@@ -837,10 +864,8 @@ def makedistribution(data):
 
 
 def makeflan(cmdline, options, args):
-
     # verify parameters, and load the template log file or replay log
     data = DataLoader(cmdline, options, args)
-
     # parse and store the template log file data line by line
     manager = TemplateManager(data)
 
@@ -872,6 +897,7 @@ def makeflan(cmdline, options, args):
     i = 0
     timespan = []
     log = None
+    stats = {}
     while totwritten < tot2write:
         if not log:
             if data.streamout:
@@ -919,6 +945,7 @@ def makeflan(cmdline, options, args):
     if not data.quiet:
         print('Total of %d record(s) written successfully from %d parsed template entries.' % (totwritten, manager.totok))
         print('Log generation completed.')
+    data.printstats()
 
     return
 
@@ -1030,6 +1057,11 @@ def main():
                        action="store",
                        dest="start_dt",
                        help='Earliest datetime YYYY-MM-DD HH24:MI:SS to provide in the generated log files. Defaults to midnight today.')
+    cmdline.add_option("--stats",
+                       action="store_true",
+                       dest="stats",
+                       help='Collect and report (at the end) per-hour cumulative counts on all the log entries generated. Use this to verify '
+                            'the spread across your chosen distribution. Default=no stats generated or shown.')
     cmdline.add_option("-t", "--timeformat",
                        action="store",
                        dest="timeformat",

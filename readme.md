@@ -157,6 +157,7 @@ flan.py [arguments] template.log outputdir
 | -q | Basho-like stdout. | Proust-like stdout. |
 | -r,<br>--records | The number of entries to write per generated log file. Min=1, Max=1M. | 10,000 |
 | -s,<br>--start | Specifies the start datetime to use for the generated log entries. All log entries will have a timestamp on or after this date. | Midnight today local/server time |
+| --stats | Collect and report (at the end) per-hour cumulative counts on all the log entries generated. Use this to verify the spread across your chosen distribution. | No stats are printed. | 
 | -t,<br>--timeformat | Timestamp format to use in the generated log file(s), EXCLUDING TIMEZONE (see -z parameter), in Python strftime format (see http://strftime.org/). | '%-d/%b/%Y:%H:%M:%S' |
 | -u,<br>--uafilter | Defines the kinds of user agents that will appear in the generated log files, one of: <br><br>bots=bot UAs only;<br><br> nonbots=non-bot UAs only;<br><br>all=both bot and non-bot UAs. | all |
 | -v | Print version number and immediately exit. | |
