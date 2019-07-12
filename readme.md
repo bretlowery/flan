@@ -124,11 +124,11 @@ Log files have complex semantics and multiple consumption possibilities. Possibl
 
 3. Install dependency requirements:
 
-`pip install -r requirements.txt`
+   `pip install -r requirements.txt`
 
 4. Run it:
 
-`python3 flan.py [arguments] template.log outputdir`
+   `python3 flan.py [arguments] template.log outputdir`
 
 
 ### Syntax and Parameters
