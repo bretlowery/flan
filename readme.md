@@ -1,6 +1,6 @@
 ## FLAN: Fake (Access) Logs for Apache or NGINX
 
-FLAN is a Python 3.x utility that creates one or more fake Apache or NGINX access.log files with fake entries based on a real-world "template" access.log file that you provide it.
+FLAN is a Python 3.x utility that creates one or more fake Apache or NGINX access.log files with fake entries based on the entries from a real-world access.log file that you provide it.
 
 
 ### Feature Highlights
@@ -115,6 +115,21 @@ Log files have complex semantics and multiple consumption possibilities. Possibl
 
 
 ### PRs welcome!
+
+### Installation
+
+1. Download and extract the flan.py, requirements.txt, and (optionally) user-agents.json file(s) to a working directory of your choice. This exercise is left to the reader.
+
+2. (Optional) Set up a Python 3.7 virtualenv and activate it. This exercise is left to the reader.
+
+3. Install dependency requirements:
+
+`pip install -r requirements.txt`
+
+4. Run it:
+
+`python3 flan.py ...`
+
 
 ### Syntax and Parameters
 
