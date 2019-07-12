@@ -92,6 +92,8 @@ Option to stream log generation to stdout.
 v0.0.6<br>
 Refactored into classes; added "none" option to -m flag (IP obfuscation) to allow non-obfuscated IPs
 
+v0.0.7<br>
+Added gzip support
 
 ### Future Enhancements
 
