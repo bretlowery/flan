@@ -847,7 +847,7 @@ def makeflan(cmdline, options, args):
         data.records = int(manager.totok * 1.0 / data.files)
         if not data.quiet:
             print("NOTE: -p (preserve sessions) specified. Matching template log, setting -r (the number of records per file) = %d * %d files = "
-                  "%d total records will be generated." % (data.records, data.files,data.records * data.files) )
+                  "%d total records will be generated." % (data.records, data.files, data.records * data.files))
     #
     # Build the time slice distribution to attribute fake log entries to
     #
