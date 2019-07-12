@@ -634,6 +634,10 @@ class TemplateManager:
                     newip = "%s.%s" % (ipkey.rsplit(".", 1)[0], str(random.randint(0, 255)))
                 else:
                     newip = "%s:%s" % (ipkey.rsplit(":", 1)[0], ''.join(random.choice(string.digits+"abcdef") for i in range(4)))
+                # ensure obfuscation
+                if newip == ipkey:
+                    newip = None
+                    continue
                 # is it a valid global ip? if not, regenerate it
                 try:
                     chk = ipaddress.ip_address(newip)
