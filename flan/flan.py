@@ -13,8 +13,9 @@ import ipaddress
 import string
 import numpy as np
 import pickle
+import gzip
 
-__version__ = "0.0.6"
+__version__ = "0.0.7"
 
 MONTHS = {
     'Jan': 1,
@@ -219,17 +220,27 @@ class DataLoader:
     def _oneof(choice, choicedict, default=None):
         return choicedict.get(choice.strip().lower(), default)
 
-    def get_outputfile(self, i):
-        return os.path.join(self.outputdir, "access.log.%d" % i if i != 0 else "access.log")
+    def get_outputfile(self, i, g):
+        return os.path.join(self.outputdir,
+                            "access.log.%d.gz" % i if i != 0 and g > 0
+                            else "access.log.gz" if i == 0 and g > 0
+                            else "access.log.%d" % i if i != 0
+                            else "access.log")
 
-    def new_outputfile(self, i):
-        return open(self.get_outputfile(i), "w+")
+    def new_outputfile(self):
+        out = self.get_outputfile(self.files, self.gzipindex)
+        if self.gzipindex > 0:
+            return gzip.open(out, "w+")
+        else:
+            return open(out, "w+")
 
-    def output_exists(self, f):
-        for i in range(0, f - 1):
-            fn = self.get_outputfile(i)
+    def output_exists(self):
+        g = self.gzipindex
+        for i in range(self.files - 1, 0):
+            fn = self.get_outputfile(i, g)
             if os.path.exists(fn):
                 return True
+            g -= 1 if g > 0 else 0
         return False
 
     @staticmethod
@@ -322,18 +333,30 @@ class DataLoader:
 
         # -n
         f = 0
-        if options.files.isdigit():
-            f = int(options.files)
+        if options.files:
+            f = options.files
             f = 0 if f < 1 or f > 1000 else f
         if f == 0:
             cmdline.error("the number of files to generate must be between 1 and 1000.")
             exit(1)
         self.files = f
 
+        # -g
+        g = 0
+        if options.gzipindex:
+            g = options.gzipindex
+            if g > self.files or g < 0:
+                cmdline.error("the gzip index must be between 0 and %d." % self.files)
+                exit(1)
+            if g > 0 and options.streamout:
+                cmdline.error("gzip is not supported for stream output.")
+                exit(1)
+        self.gzipindex = g
+
         # -r
         r = 0
-        if options.records.isdigit():
-            r = int(options.records)
+        if options.records:
+            r = options.records
             r = 0 if r < 1 or r > 1000000 else r
         if r == 0:
             cmdline.error("the number of records to generate per file must be between 1 and 1000000.")
@@ -451,7 +474,7 @@ class DataLoader:
                 print("NOTE: -a not specified; unparseable log entries will be skipped.")
 
         if not options.overwrite and not options.streamout:
-            if self.output_exists(self.files):
+            if self.output_exists():
                 cmdline.error("one or more target file(s) exist, and --overwrite was not specified.")
                 exit(1)
         if not options.quiet and not options.replay:
@@ -853,14 +876,19 @@ def makeflan(cmdline, options, args):
                 log = sys.stdout
                 timespan = time_distribution
             else:
-                log = data.new_outputfile(data.files)
+                log = data.new_outputfile()
                 if not data.quiet:
                     print('Beginning write of fake entries to log %s.' % log.name)
                 # pop the oldest r timestamps from the timestamp distribution and use them on the current log file
                 timespan = time_distribution[:data.records]
                 time_distribution = time_distribution[data.records:]
                 i = 0
-        if data.quote:
+        if data.gzipindex > 0:
+            if data.quote:
+                log.write(str.encode("'%s'%s" % (manager.generate_entry(timespan, i, data, uas.uas), data.delimiter)))
+            else:
+                log.write(str.encode("%s%s" % (manager.generate_entry(timespan, i, data, uas.uas), data.delimiter)))
+        elif data.quote:
             log.write("'%s'%s" % (manager.generate_entry(timespan, i, data, uas.uas), data.delimiter))
         else:
             log.write("%s%s" % (manager.generate_entry(timespan, i, data, uas.uas), data.delimiter))
@@ -877,6 +905,7 @@ def makeflan(cmdline, options, args):
                 log.close()
                 log = None
                 data.files -= 1
+                data.gzipindex -= 1 if data.gzipindex > 0 else 0
                 totthisfile = 0
 
     if log and not data.streamout:
@@ -926,6 +955,15 @@ def main():
                        default='$remote_addr - $remote_user [$time_local] \"$request\" $status $body_bytes_sent \"$http_referer\" \"$http_user_agent\"',
                        help='Format of the long entry line. Default is: \'$remote_addr - $remote_user [$time_local] \"$request\" '
                             '$status $body_bytes_sent \"$http_referer\" \"$http_user_agent\"\'', )
+    cmdline.add_option("-g", "--gzip",
+                       action="store",
+                       dest="gzipindex",
+                       type="int",
+                       default=0,
+                       help='Used in conjunction with the passed -n value, this specifies a file index number at which to begin gzipping generated '
+                            'log files. It must be between 0 and the -n value provided. For example, "-n 5 -g 3" generates log files called '
+                            '"access.log", "access.log.1", "access.log.2.gz", "access.log.3.gz", "access.log.4.gz": 5 files, the last 3 of '
+                            'which are gzipped. Default=0, no gzipping occurs.')
     cmdline.add_option("-i", "--ipfilter",
                        action="store",
                        dest="ipfilter",
@@ -957,7 +995,8 @@ def main():
     cmdline.add_option("-n", "--numfiles",
                        action="store",
                        dest="files",
-                       default="1",
+                       type="int",
+                       default=1,
                        help="Number of access.log(.#) file(s) to output. Default=1, min=1, max=1000. Example: '-n 4' creates access.log, "
                             "access.log.1, access.log.2, and access.log.3 in the output directory.", )
     cmdline.add_option("-o",
@@ -981,8 +1020,9 @@ def main():
                        help="Basho-like stdout. Default=Proust-like stdout.")
     cmdline.add_option("-r", "--records",
                        action="store",
+                       type="int",
                        dest="records",
-                       default="10000",
+                       default=10000,
                        help="Number of records (entries) to create per generated access.log(.#) file. Default=10000, min=1, max=1000000.", )
     cmdline.add_option("-s", "--start",
                        action="store",
