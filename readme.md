@@ -128,7 +128,7 @@ Log files have complex semantics and multiple consumption possibilities. Possibl
 
 4. Run it:
 
-`python3 flan.py ...`
+`python3 flan.py [arguments] template.log outputdir`
 
 
 ### Syntax and Parameters
