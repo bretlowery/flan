@@ -680,8 +680,6 @@ class TemplateManager:
 
     def __init__(self, data):
 
-        self.replaylogfile = os.path.join(os.path.dirname(__file__), 'flan.replay')
-
         self.totread = 0
         self.totok = 0
         self.parsed = []
