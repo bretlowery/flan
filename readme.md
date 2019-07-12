@@ -152,7 +152,7 @@ flan.py [arguments] template.log outputdir
 
 ### Where can I get access.log files to test with?
 
-https://www.google.com/search?q=access.log+examples
+Here's one place:
 
 https://gist.github.com/rm-hull/bd60aed44024e9986e3c
 
