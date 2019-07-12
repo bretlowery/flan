@@ -408,7 +408,10 @@ class DataLoader:
                                      "\r\n")
 
         # -m
-        self.ipmapping = self._onein(options.ipmapping, ["none", "onetoone", "onetomany"], "onetomany")
+        if self.preserve_sessions:
+            self.ipmapping = self._onein(options.ipmapping, ["none", "onetoone"], "onetoone")
+        else:
+            self.ipmapping = self._onein(options.ipmapping, ["none", "onetoone", "onetomany"], "onetomany")
 
         # -p
         if options.preserve_sessions:
