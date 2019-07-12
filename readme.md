@@ -150,6 +150,11 @@ flan.py [arguments] template.log outputdir
 | -y | Replay logging. If specified, enables the replay log. Replay logging parses the template log file on first execution and stores the parsed results in a binary 'flan.replay' file located in the same directory as flan.py. On subsequent execution, Flan will load the already-parsed replay log rather than reparse the template log file, saving lots of time when reusing the same large template log repeatedly. Once created, the replay log is never overwritten or deleted; delete it manually first to recreate it on the next Flan run, if needed. If a replay log exists but -y is not specified, the replay log is ignored (neither read nor overwritten).| Do not use replay logs; parse the template log every time and ignore any existing replay log. |
 | -z,<br>--timezone | Timezone offset in (+/-)HHMM format to append to timestamps in the generated log file(s), or pass '' to specify no timezone. | Your current local/server timezone. |
 
+### Where can I get access.log files to test with?
+
+https://www.google.com/search?source=hp&ei=iZkoXffiBrCzgge1nZLYAg&q=access.log+examples
+
+https://gist.github.com/rm-hull/bd60aed44024e9986e3c
 
 
 
