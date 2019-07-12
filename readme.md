@@ -13,7 +13,8 @@ FLAN is a Python 3.x utility that creates one or more fake Apache or NGINX log f
 6. You can include only bots that actually appear in your provided template log file, bots that occur in the wild (in the proportions they actually occur in), both, or no bots at all;
 7. You can include only user agents found in your template file, user agents that are common in the wild (in the proportions they actually occur in), or both;
 8. Supports and obfuscates both IPv4 and IPv6, using intelligent rules that guarantee valid global IPs while maintaining non-global IPs like loopback and private networks as-is without obfuscation;
-9. Write to files, or stream results to stdout.
+9. Write to files, or stream results to stdout;
+10. Optionally gzip any or all generated log files.
 
 ### Background
 
