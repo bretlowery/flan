@@ -95,6 +95,12 @@ Refactored into classes; added "none" option to -m flag (IP obfuscation) to allo
 v0.0.7<br>
 Added gzip support
 
+v0.0.8<br>
+--stats flag added
+
+v0.0.9<br>
+setup.py install supported
+
 ### Future Enhancements
 
 Log files have complex semantics and multiple consumption possibilities. Possible future enhancements:
@@ -118,23 +124,34 @@ Log files have complex semantics and multiple consumption possibilities. Possibl
 
 ### Installation
 
-1. Download and extract the flan.py, requirements.txt, and (optionally) user-agents.json file(s) to a working directory of your choice. This exercise is left to the reader.
+1. Download and extract all *.py files, requirements.txt, and (optionally) user-agents.json to a installation directory of your choice. This exercise is left to the reader.
 
 2. (Optional) Set up a Python 3.7 virtualenv and activate it. This exercise is left to the reader.
 
 3. Install dependency requirements:
 
    `pip install -r requirements.txt`
+   
+4. Run setup.py:
 
-4. Run it:
+   `python setup.py install`
+   
+   OPTION: if you (might) want to uninstall later, record the files created locally during install by using this command instead:
+   
+   `python setup.py install --record flaninstalledfiles.txt`
 
-   `python3 flan.py [arguments] template.log outputdir`
+5. Run it:
 
+   `flan [arguments] template.log outputdir`
+   
+### Uninstall
+
+   `xargs rm -rf < flaninstalledfiles.txt`
 
 ### Syntax and Parameters
 
 ```
-flan.py [arguments] template.log outputdir
+flan [arguments] template.log outputdir
 ```
 
 | Commandline Argument            | Definition                             | Default       |

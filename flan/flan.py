@@ -15,7 +15,7 @@ import numpy as np
 import pickle
 import gzip
 
-__version__ = "0.0.8"
+__version__ = "0.0.9"
 
 MONTHS = {
     'Jan': 1,
@@ -868,7 +868,6 @@ def makeflan(cmdline, options, args):
     data = DataLoader(cmdline, options, args)
     # parse and store the template log file data line by line
     manager = TemplateManager(data)
-
     # if preserving sessions, the number of generated entries must = the number in the template log
     if data.preserve_sessions:
         data.records = int(manager.totok * 1.0 / data.files)
@@ -879,26 +878,24 @@ def makeflan(cmdline, options, args):
     # Build the time slice distribution to attribute fake log entries to
     #
     tot2write, time_distribution, aps = makedistribution(data)
-
     #
     # Populate ua list with frequency-appropriate selection of bots actually seen in the template log
     #
     uas = UAFactory(data, manager)
-
+    #
     if not data.quiet:
         print('Parsed and prepped a total of %d entries (%d successfully, %d skipped).' % (manager.totread, manager.totok, manager.totread - manager.totok))
-
     #
     # Generate the requested fake logs!
     #
     data.files = data.files - 1
     totthisfile = 0
     totwritten = 0
-    i = 0
-    timespan = []
     log = None
-    stats = {}
     while totwritten < tot2write:
+        #
+        # prewrite
+        #
         if not log:
             if data.streamout:
                 log = sys.stdout
@@ -911,6 +908,9 @@ def makeflan(cmdline, options, args):
                 timespan = time_distribution[:data.records]
                 time_distribution = time_distribution[data.records:]
                 i = 0
+        #
+        # write one entry
+        #
         if data.gzipindex > 0:
             if data.quote:
                 log.write(str.encode("'%s'%s" % (manager.generate_entry(timespan, i, data, uas.uas), data.delimiter)))
@@ -920,6 +920,9 @@ def makeflan(cmdline, options, args):
             log.write("'%s'%s" % (manager.generate_entry(timespan, i, data, uas.uas), data.delimiter))
         else:
             log.write("%s%s" % (manager.generate_entry(timespan, i, data, uas.uas), data.delimiter))
+        #
+        # postwrite
+        #
         totthisfile += 1
         totwritten += 1
         i += 1
