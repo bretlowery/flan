@@ -103,7 +103,15 @@ setup.py install supported
 
 ### Future Enhancements
 
-Log files have complex semantics and multiple consumption possibilities. Possible future enhancements:
+Definitely:
+
+1. Accept multiple, chronologically sequential template logs as input, for long-range session preservation;
+
+2. Add true streaming output capability to create a continuous stream of chronologically-advancing fake log output.
+
+3. Integrations: Splunk, QRadar, LogRhythm, SolarWinds, LogStash/ELK, Graylog, LOGalyze, ManageEngine, FluentD, Apache Flume, Apache Kafka, Apache Pulsar, Apache Nifi are a few off the top of my head.
+
+Possibly:
 
 1. Ability to specify the generation of specific CIDRs, ASNUM blocks, IP ranges, etc.;
 
@@ -116,8 +124,6 @@ Log files have complex semantics and multiple consumption possibilities. Possibl
 <br/>https://www.nngroup.com/articles/traffic-log-patterns
 <br/>https://en.wikipedia.org/wiki/Traffic_generation_model
 <br>https://en.wikipedia.org/wiki/List_of_probability_distributions
-
-5. Tighter integrations: Splunk, QRadar, LogRhythm, SolarWinds, LogStash/ELK, Graylog, LOGalyze, ManageEngine, FluentD, Apache Flume, Apache Kafka, Apache Pulsar, Apache Nifi are a few off the top of my head.
 
 
 ### PRs welcome!
