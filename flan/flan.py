@@ -14,8 +14,9 @@ import string
 import numpy as np
 import pickle
 import gzip
+import collections
 
-__version__ = "0.0.9"
+__version__ = "0.0.10"
 
 MONTHS = {
     'Jan': 1,
@@ -205,20 +206,60 @@ def uatostructstr(uastring):
 
 class DataLoader:
     global replaylogfile
+    
+    def _load_templates(self, options, args, cmdline):
+        self.contents = []
+        self.templatelogfiles = None
+        if not options.replay or not self.replaylogfile_exists():
+            try:
+                # get spec of template log file(s)
+                self.templatelogfiles = args[0].strip()
+                # get each template log file's file creation date
+                fd = {}
+                for file in glob.glob(self.templatelogfiles):
+                    cd = os.path.getctime(file)
+                    fd[cd] = file
+                # order the list of template log files by creation date asc (oldest first)
+                fod = collections.OrderedDict(sorted(fd.items()))
+                for cd, file in fod.items():
+                    if file[3:].lower() == ".gz" or file[5:].lower() == ".gzip":
+                        with gzip.open(file, "rb") as fp:
+                            currentfile = fp.readlines()
+                            fp.close()
+                    else:
+                        with open(file, "r") as fp:
+                            currentfile = fp.readlines()
+                            fp.close()
+                    self.contents = self.contents + [x.strip() for x in currentfile]
+                # do something with file
+            except IOError as e:
+                cmdline.error("ERROR trying to read the template log file: %s", str(e))
+                exit(1)
+            if not self.contents:
+                cmdline.error("the template access log provided is empty.")
+                exit(1)
 
-    @staticmethod
-    def _onein(choice, choicelist, default=None):
-        if not choice:
-            return default
-        choice = choice.strip().lower()
-        if choice in choicelist:
-            return choice
-        else:
-            return default
-
-    @staticmethod
-    def _oneof(choice, choicedict, default=None):
-        return choicedict.get(choice.strip().lower(), default)
+    def _verify_outputdir(self, options, args, cmdline):
+        output = None
+        if not options.streamout:
+            try:
+                output = (args[1].strip() + "/").replace("//", "/")
+                if os.path.exists(output):
+                    if os.path.isfile(output):
+                        cmdline.error("the output location must be a directory, not a file.")
+                        exit(1)
+                    output = os.path.dirname(output)
+                    output = '.' if not output else output
+                    if not os.access(output, os.W_OK):
+                        cmdline.error("no write access to target directory. Check your permissions.")
+                        exit(1)
+                else:
+                    cmdline.error("the output location does not exist or is not accessible by the current user context.")
+                    exit(1)
+            except IOError as e:
+                cmdline.error("ERROR checking output directory access/permissions: %s", str(e))
+                exit(1)
+        self.outputdir = output
 
     def get_outputfile(self, i, g):
         return os.path.join(self.outputdir,
@@ -244,10 +285,24 @@ class DataLoader:
         return False
 
     @staticmethod
+    def _onein(choice, choicelist, default=None):
+        if not choice:
+            return default
+        choice = choice.strip().lower()
+        if choice in choicelist:
+            return choice
+        else:
+            return default
+
+    @staticmethod
+    def _oneof(choice, choicedict, default=None):
+        return choicedict.get(choice.strip().lower(), default)
+    
+    @staticmethod
     def replaylogfile_exists():
         return os.path.exists(replaylogfile)
 
-    def printstats(self):
+    def print_stats(self):
         if self.stats and not self.streamout:
             print('Distribution Stats')
             for d in range(1, self.delta + 1):
@@ -256,7 +311,7 @@ class DataLoader:
                     print('      Hour %d:\t%d' % (h, self.stats[d][h]))
         return
 
-    def __init__(self, cmdline, options, args):
+    def __init__(self, options, args, cmdline):
 
         if options.streamout:
             options.quiet = True
@@ -270,54 +325,20 @@ class DataLoader:
             assert (args[0] and (args[1] or options.streamout))
             assert (len(args[0]) > 0 and (len(args[1]) > 0 or options.streamout))
         except:
-            cmdline.error("please provide an example logfile to read, and either a destination output directory to write access logs to OR specify stream output with -o.")
+            cmdline.error("please provide a/an example logfile(s) to read, and either a destination output directory to write access logs to OR specify stream output with -o.")
             exit(1)
 
         #
-        # handle arg 0: load either the template log file or the replay log
+        # handle arg 0: load either the template log file(s) or the replay log
         #
 
-        contents = None
-        if not options.replay or not self.replaylogfile_exists():
-            try:
-                self.templatelogfile = args[0].strip()
-                for file in glob.glob(self.templatelogfile):
-                    with open(file, "r") as fp:
-                        contents = fp.readlines()
-                        fp.close()
-                # do something with file
-            except IOError as e:
-                cmdline.error("ERROR trying to read the template log file: %s", str(e))
-                exit(1)
-            if not contents:
-                cmdline.error("the template access log provided is empty.")
-                exit(1)
-        self.contents = contents
+        self._load_templates(options, args, cmdline)
 
         #
         # handle arg 1: verify output location
         #
 
-        output = None
-        if not options.streamout:
-            try:
-                output = (args[1].strip() + "/").replace("//", "/")
-                if os.path.exists(output):
-                    if os.path.isfile(output):
-                        cmdline.error("the output location must be a directory, not a file.")
-                        exit(1)
-                    output = os.path.dirname(output)
-                    output = '.' if not output else output
-                    if not os.access(output, os.W_OK):
-                        cmdline.error("no write access to target directory. Check your permissions.")
-                        exit(1)
-                else:
-                    cmdline.error("the output location does not exist or is not accessible by the current user context.")
-                    exit(1)
-            except IOError as e:
-                cmdline.error("ERROR checking output directory access/permissions: %s", str(e))
-                exit(1)
-        self.outputdir = output
+        self._verify_outputdir(options, args, cmdline)
 
         #
         # verify inputs
@@ -844,7 +865,7 @@ class TemplateManager:
             replace("$http_referer", entry["http_referer"])
 
 
-def makedistribution(data):
+def make_distribution(data):
     seconds = int((data.end_dt - data.start_dt).total_seconds())
     midpoint = round(seconds / 2.0) if data.disttype == 2 else None
     tot2write = data.files * data.records
@@ -863,9 +884,9 @@ def makedistribution(data):
     return tot2write, time_distribution, aps
 
 
-def makeflan(cmdline, options, args):
+def make_flan(options, args, cmdline):
     # verify parameters, and load the template log file or replay log
-    data = DataLoader(cmdline, options, args)
+    data = DataLoader(options, args, cmdline)
     # parse and store the template log file data line by line
     manager = TemplateManager(data)
     # if preserving sessions, the number of generated entries must = the number in the template log
@@ -877,7 +898,7 @@ def makeflan(cmdline, options, args):
     #
     # Build the time slice distribution to attribute fake log entries to
     #
-    tot2write, time_distribution, aps = makedistribution(data)
+    tot2write, time_distribution, aps = make_distribution(data)
     #
     # Populate ua list with frequency-appropriate selection of bots actually seen in the template log
     #
@@ -948,14 +969,14 @@ def makeflan(cmdline, options, args):
     if not data.quiet:
         print('Total of %d record(s) written successfully from %d parsed template entries.' % (totwritten, manager.totok))
         print('Log generation completed.')
-    data.printstats()
+    data.print_stats()
 
     return
 
 
 def main():
     # command-line parsing
-    cmdline = OptionParser(usage="usage: %prog [options] examplelogfile outputdirectory",
+    cmdline = OptionParser(usage="usage: %prog [options] templatelogfiles outputdirectory",
                            description="Create one or more 'fake' Apache or Nginx access.log(.#) file(s) from a single real-world example access.log file.")
     cmdline.add_option("-a",
                        action="store_true",
@@ -1113,9 +1134,9 @@ def main():
 
     if options.profile:
         import cProfile
-        cProfile.runctx('makeflan(cmdline, options, args)', globals(), locals())
+        cProfile.runctx('make_flan(options, args, cmdline)', globals(), locals())
     else:
-        makeflan(cmdline, options, args)
+        make_flan(options, args, cmdline)
     exit(0)
 
 

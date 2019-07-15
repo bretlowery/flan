@@ -6,7 +6,7 @@ FLAN is a Python 3.x utility that creates one or more fake Apache or NGINX acces
 ### Feature Highlights
 
 1. It's fast, with speed enhancements like replay ability;
-2. It's real, generating its data in part from an example "template" log file you provide and using valid IPs and user agent combos that make sense;
+2. It's real, generating its data in part from one or more example "template" log file(s) you provide and using valid IPs and user agent combos that make sense;
 3. You can optionally preserve sessions and session semantics while obfuscating their original source;
 4. Use different traffic distributions in your generated files: normal (bell curve), even (random), etc. between start and end dates you specify;
 5. You can include bot traffic, or not;
@@ -35,9 +35,13 @@ FLAN generates up to 1K test access.log files of up to 1M records each, per run.
 
 ### Generating log files semantically similar to production
 
-To ensure your fake logs look as semantically real as your production ones, it reads a "template" access.log from a real production system that you provide (hereinafter referred to as the "template log"). It doesn't matter how many records the template log contains, but the longer it is the more realistic your generated fake logs will be. If you do NOT specify session preservation with the -p flag (described below), you can specify the number of files and records to generate, and your template log can be bigger or smaller than your generated log file(s). If you specify session preservation, your generated log files will be the same total record size as your template log file.
+To ensure your fake logs look as semantically real as your production ones, it reads one or more "template" access.logs from a real production system that you provide (hereinafter referred to as the "template logs"). It doesn't matter how many records the template logs contain, but the longer it/they are, the more realistic your generated fake logs will be. If you do NOT specify session preservation with the -p flag (described below), you can specify the number of files and records to generate, and your template log(s) can be bigger or smaller than your generated log file(s). If you specify session preservation, your generated log files will contain the same number of records as the total number of records contained in your template log file(s).
 
-You can specify the number of access.log file(s) you want to generate, and the entries per file. Access logs are created using the standard suffixes access.log, access.log.1, access.log.2, etc. You can specify a start and end datetime for your log entries.
+To provide more than one template log file, use wildcards; for example, "/var/logs/access.log*". Your template logs may be gzipped; if they have a ".gz" extension, FLAN will unzip them when it reads them. You can mix both non-zipped and gzipped files in your wildcard spec.
+
+You can specify the number of access.log file(s) you want to generate, and the entries per file. Access logs are created using the standard suffixes access.log, access.log.1, access.log.2, etc. 
+
+You can specify start and end datetimea for your generated log entries that can, but don't have to, match the dates in the template logs. There is no guarantee that entries *exactly* matching your start and end dates will be generated, however. They are just guaranteed to be between your selected dates. 
 
 _IP addresses_<br>Global addresses in the template log are obfuscated: the last three digits (/24) of an IPv4 or the last four digits (/116) of an IPv6 are randomized. This provides minimal IP obfuscation while maximizing retention of other interesting properties in your IP addresses, like the geolocation of your users, commercial vs residential, etc. 
 
@@ -90,26 +94,27 @@ v0.0.5<br>
 Option to stream log generation to stdout.
 
 v0.0.6<br>
-Refactored into classes; added "none" option to -m flag (IP obfuscation) to allow non-obfuscated IPs
+Refactored into classes; added "none" option to -m flag (IP obfuscation) to allow non-obfuscated IPs.
 
 v0.0.7<br>
-Added gzip support
+Added gzip support.
 
 v0.0.8<br>
---stats flag added
+--stats flag added.
 
 v0.0.9<br>
-setup.py install supported
+setup.py install supported.
+
+v0.0.10<br>
+Allow multiple, chronologically-sequential template logs as input, for long-range session preservation.
 
 ### Future Enhancements
 
 Definitely:
 
-1. Accept multiple, chronologically sequential template logs as input, for long-range session preservation;
+1. Add true streaming output capability to create a continuous stream of chronologically-advancing fake log output.
 
-2. Add true streaming output capability to create a continuous stream of chronologically-advancing fake log output.
-
-3. Integrations: Splunk, QRadar, LogRhythm, SolarWinds, LogStash/ELK, Graylog, LOGalyze, ManageEngine, FluentD, Apache Flume, Apache Kafka, Apache Pulsar, Apache Nifi are a few off the top of my head.
+2. Integrations: Splunk, QRadar, LogRhythm, SolarWinds, LogStash/ELK, Graylog, LOGalyze, ManageEngine, FluentD, Apache Flume, Apache Kafka, Apache Pulsar, Apache Nifi are a few off the top of my head.
 
 Possibly:
 
@@ -153,11 +158,15 @@ Possibly:
 ### Uninstall
 
    `xargs rm -rf < flaninstalledfiles.txt`
+   
+### Update
+
+   Uninstall, then reinstall.
 
 ### Syntax and Parameters
 
 ```
-flan [arguments] template.log outputdir
+flan [arguments] templatelogspec outputdir
 ```
 
 | Commandline Argument            | Definition                             | Default       |
