@@ -108,6 +108,9 @@ setup.py install supported.
 v0.0.10<br>
 Allow multiple, chronologically-sequential template logs as input, for long-range session preservation.
 
+v0.0.11<br>
+Replace deprecated OptionParser with argparse
+
 ### Future Enhancements
 
 Definitely:
