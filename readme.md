@@ -114,7 +114,7 @@ Definitely:
 
 1. Add true streaming output capability to create a continuous stream of chronologically-advancing fake log output.
 
-2. Integrations: Splunk, QRadar, LogRhythm, SolarWinds, LogStash/ELK, Graylog, LOGalyze, ManageEngine, FluentD, Apache Flume, Apache Kafka, Apache Pulsar, Apache Nifi are a few off the top of my head.
+2. Integrations: Splunk, QRadar, LogRhythm, SolarWinds, LogStash/ELK, Graylog, LOGalyze, ManageEngine, FluentD, Apache Flume, RabbitMQ, Redis Pub/Sub, Apache Kafka, Apache Pulsar, Apache Nifi are a few off the top of my head.
 
 Possibly:
 
