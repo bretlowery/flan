@@ -326,7 +326,7 @@ class DataLoader:
 
         try:
             assert (options.templatelogfiles and (options.outputdir or options.streamout))
-            assert (len(options.templatelogfiles) > 0 and (len(options.outputdir) > 0 or options.streamout))
+            assert (len(options.templatelogfiles) > 0 and (options.outputdir or options.streamout))
         except:
             error("please provide a/an example logfile(s) to read, and either a destination output directory to write access logs to OR specify stream output with -o.")
             exit(1)
@@ -933,7 +933,7 @@ def make_flan(options):
                 # pop the oldest r timestamps from the timestamp distribution and use them on the current log file
                 timespan = time_distribution[:data.records]
                 time_distribution = time_distribution[data.records:]
-                i = 0
+            i = 0
         #
         # write one entry
         #
