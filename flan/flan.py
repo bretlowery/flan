@@ -33,6 +33,8 @@ MONTHS = {
     'Dec': 12
 }
 
+default_format = '$remote_addr - $remote_user [$time_local] \"$request\" $status $body_bytes_sent \"$http_referer\" \"$http_user_agent\"'
+
 supported_nginx_fields = '[' \
                          '{' \
                          '  "name": "$remote_addr",' \
@@ -179,8 +181,10 @@ ipmap2 = {}
 replaylogfile = os.path.join(os.path.dirname(__file__), 'flan.replay')
 
 
-def error(*args, **kwargs):
-    print(*args, file=sys.stderr, **kwargs)
+def error(msg):
+    msg = "ERROR: %s" % msg.strip()
+    print(msg, file=sys.stderr)
+    exit(1)
 
 def uatostruct(uastring):
     return user_agents.parse(uastring.lstrip('\"').rstrip('\"'))
@@ -207,7 +211,6 @@ def uatostructstr(uastring):
 
 
 class DataLoader:
-    global replaylogfile
 
     def _load_templates(self, options):
         self.contents = []
@@ -236,10 +239,8 @@ class DataLoader:
                 # do something with file
             except IOError as e:
                 error("ERROR trying to read the template log file: %s", str(e))
-                exit(1)
             if not self.contents:
                 error("the template access log provided is empty.")
-                exit(1)
 
     def _verify_outputdir(self, options):
         output = None
@@ -249,18 +250,14 @@ class DataLoader:
                 if os.path.exists(output):
                     if os.path.isfile(output):
                         error("the output location must be a directory, not a file.")
-                        exit(1)
                     output = os.path.dirname(output)
                     output = '.' if not output else output
                     if not os.access(output, os.W_OK):
                         error("no write access to target directory. Check your permissions.")
-                        exit(1)
                 else:
                     error("the output location does not exist or is not accessible by the current user context.")
-                    exit(1)
             except IOError as e:
-                error("ERROR checking output directory access/permissions: %s", str(e))
-                exit(1)
+                error("when checking output directory access/permissions: %s" % str(e))
         self.outputdir = output
 
     def get_outputfile(self, i, g):
@@ -329,7 +326,6 @@ class DataLoader:
             assert (len(options.templatelogfiles) > 0 and (options.outputdir or options.streamout))
         except:
             error("please provide a/an example logfile(s) to read, and either a destination output directory to write access logs to OR specify stream output with -o.")
-            exit(1)
 
         #
         # handle arg 0: load either the template log file(s) or the replay log
@@ -371,7 +367,6 @@ class DataLoader:
             f = 0 if f < 1 or f > 1000 else f
         if f == 0:
             error("the number of files to generate must be between 1 and 1000.")
-            exit(1)
         self.files = f
 
         # -g
@@ -380,10 +375,8 @@ class DataLoader:
             g = options.gzipindex
             if g > self.files or g < 0:
                 error("the gzip index must be between 0 and %d." % self.files)
-                exit(1)
             if g > 0 and options.streamout:
                 error("gzip is not supported for stream output.")
-                exit(1)
         self.gzipindex = g
 
         # -r
@@ -393,7 +386,6 @@ class DataLoader:
             r = 0 if r < 1 or r > 1000000 else r
         if r == 0:
             error("the number of records to generate per file must be between 1 and 1000000.")
-            exit(1)
         self.records = r
 
         # -t
@@ -402,7 +394,6 @@ class DataLoader:
             x = chk.strftime(options.timeformat)
         except:
             error("the -t/--timeformat format must be a valid Python strftime format. See http://strftime.com.")
-            exit(1)
         self.timeformat = options.timeformat
 
         # -s
@@ -432,13 +423,11 @@ class DataLoader:
         self.botfilter = self._onein(options.botfilter, ["all", "seen", "unseen"], "seen")
         if not self.botfilter:
             error("the -b/--botfilter value if specified should be one of: 'all', 'seen', or 'unseen'.")
-            exit(1)
 
         # -u
         self.uafilter = self._onein(options.uafilter, ["all", "bots", "nobots"], "all")
         if not self.uafilter:
             error("the -u/--uafilter value if specified should be one of: 'all', 'bots', or 'nobots'.")
-            exit(1)
 
         # -d
         # 1 = random
@@ -478,7 +467,6 @@ class DataLoader:
         if options.preserve_sessions:
             if self.ipmapping != "onetoone":
                 error("-p (session preservation) requires that '-m onetoone' be specified as well.")
-                exit(1)
 
         # -x
         regx = None
@@ -488,7 +476,6 @@ class DataLoader:
                 regx = re.compile(chk)
             except:
                 error("the regex string provided (-x '%s') is not a valid regex. See https://www.google.com/search?q=python+regex+cheat+sheet for help." % chk)
-                exit(1)
         self.customregex = regx
 
         # -i
@@ -500,7 +487,6 @@ class DataLoader:
                     ipmatch = ipaddress.ip_network(chk) if "/" in chk else ipaddress.ip_address(chk)
                 except:
                     error("one or more values in the -i parameter value provided ('%s') is neither a valid IP address or network (CIDR)." % chk)
-                    exit(1)
                 ipmatches.append(ipmatch)
         self.ipfilter = ipmatches
 
@@ -525,7 +511,6 @@ class DataLoader:
         if not options.overwrite and not options.streamout:
             if self.output_exists():
                 error("one or more target file(s) exist, and --overwrite was not specified.")
-                exit(1)
         if not options.quiet and not options.replay:
             print("%d lines read from %s." % (len(self.contents), options.templatelogfiles.strip()))
 
@@ -566,7 +551,6 @@ class UAFactory:
 
 
 class TemplateManager:
-    global replaylogfile
 
     @staticmethod
     def _ts_to_dts(ts):
@@ -610,8 +594,7 @@ class TemplateManager:
                 pickle.dump(replaydata, rl)
                 rl.close()
         except Exception as e:
-            error("unable to save %s: %s" % (self.replaylogfile, str(e)))
-            exit(1)
+            error("unable to save %s: %s" % (replaylogfile, str(e)))
         return
 
     def _get_loglineregex(self, data):
@@ -626,7 +609,6 @@ class TemplateManager:
             return re.compile(reexpr)
         except:
             error("incorrect, incomplete, or unsupported Format (-f) value provided.")
-            exit(1)
 
     def _parse_logline(self, line, data):
 
@@ -635,11 +617,14 @@ class TemplateManager:
         try:
             m = self.lineregex.match(line)
         except Exception as e:
-            if data.abort:
-                error("Halting on line %d (-a/--strict specified): %s." % (self.totread, str(e)))
-                exit(1)
-            print("Skipping unparseable line %d: %s..." % (self.totread, str(e)))
+            m = None
             pass
+
+        if not m:
+            if data.abort:
+                error("Line %d is incorrectly formatted." % self.totread)
+            if not data.quiet:
+                print("Skipping unparseable line %d..." % self.totread)
 
         if data.customregex:
             m = None
@@ -702,7 +687,6 @@ class TemplateManager:
                             tries += 1
                             if tries == 1024:
                                 error("excessive number of retries during attempt to obfuscate ip %s using one-to-one method." % ipkey)
-                                exit(0)
                         else:
                             ipmap[ipkey] = newip
                             ipmap2[newip] = True
@@ -824,11 +808,9 @@ class TemplateManager:
 
         if self.totok == 0:
             error("no usable entries found in the log file provided based on passed parameter filters.")
-            exit(0)
 
         if not replaying and (not earliest_ts or not latest_ts):
             error("no timestamps found in the log file provided. Timestamps are required.")
-            exit(0)
 
         if data.replay and not replaying:
             self._save_replay_log(self.parsed, data)
@@ -1014,7 +996,7 @@ def main():
     argz.add_argument("-f", "--format",
                       action="store",
                       dest="format",
-                      default='$remote_addr - $remote_user [$time_local] \"$request\" $status $body_bytes_sent \"$http_referer\" \"$http_user_agent\"',
+                      default=default_format,
                       help='Format of the long entry line. Default is: \'$remote_addr - $remote_user [$time_local] \"$request\" '
                            '$status $body_bytes_sent \"$http_referer\" \"$http_user_agent\"\'', )
     argz.add_argument("-g", "--gzip",
