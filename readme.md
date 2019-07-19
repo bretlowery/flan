@@ -174,8 +174,8 @@ flan [arguments] templatelogspec outputdir
 
 | Commandline Argument            | Definition                             | Default       |
 | ------------------- |:---------------------------------------| ------------- |
-| -a    | If specified, halt on any (i.e. the first) unparseable entries in your template log. | Skip any&all unparseable entries |
-| -b,<br>--botfilter     | Iff -u is set to 'all' or 'bots', defines which bots appear in the generated log files, one of:<br><br>seen=only use bots that appear in the template log file and are identifiable as robotic;<br><br>unseen=only use bots found in the user-agents.json file (if used, this should be located in the same directory as flan.py);<br><br>all=use bots from both the template log and the user-agents.json file. | seen |
+| -a | If specified, halt on any (i.e. the first) unparseable entries in your template log. | Skip any&all unparseable entries |
+| -b,<br>--botfilter | Iff -u is set to 'all' or 'bots', defines which bots appear in the generated log files, one of:<br><br>seen=only use bots that appear in the template log file and are identifiable as robotic;<br><br>unseen=only use bots found in the user-agents.json file (if used, this should be located in the same directory as flan.py);<br><br>all=use bots from both the template log and the user-agents.json file. | seen |
 | -d,<br>--distribution | One of:<br><br>normal=use a normal distribution centered midway between start and end datetimes for the time dimension;<br><br>random=use a random ("shotgun blast") distribution. | normal |
 | -e,<br>--end | Specifies the end datetime to use for the generated log entries. All log entries will have a timestamp on or before this date. | Midnight tomorrow local/server time |
 | -f,<br>--format | Your Apache/NGINX log entry format string. | '$remote_addr - $remote_user [$time_local] \"$request\" $status $body_bytes_sent \"$http_referer\" \"$http_user_agent\"' |
@@ -203,9 +203,14 @@ flan [arguments] templatelogspec outputdir
 
 ### Where can I get access.log files to test with?
 
-Here's one place:
+Test log files are available in the tests folder.
+
+Here's another resource:
 
 https://gist.github.com/rm-hull/bd60aed44024e9986e3c
+
+Or, just Google "example access.log files".
+
 
 
 
