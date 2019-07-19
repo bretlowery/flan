@@ -16,7 +16,7 @@ import pickle
 import gzip
 import collections
 
-__version__ = "0.0.11"
+__version__ = "0.0.13"
 
 MONTHS = {
     'Jan': 1,
