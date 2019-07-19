@@ -553,7 +553,7 @@ class UAFactory:
 class TemplateManager:
 
     @staticmethod
-    def _ts_to_dts(ts):
+    def _ts_to_logdts(ts):
         try:
             dts = str(datetime.datetime(int(ts[7:11]), MONTHS[ts[3:6]], int(ts[0:2]), int(ts[12:14]), int(ts[15:17]), int(ts[18:20])))
         except:
@@ -636,7 +636,7 @@ class TemplateManager:
         if m:
             dikt = m.groupdict()
             if "time_local" in dikt.keys():
-                dikt["_ts"] = self._ts_to_dts(dikt["time_local"])
+                dikt["_ts"] = self._ts_to_logdts(dikt["time_local"])
             return dikt
         else:
             return None
@@ -963,7 +963,7 @@ def make_flan(options):
 
 def main():
     # command-line parsing
-    argz = argparse.ArgumentParser(usage="usage: %prog [options] templatelogfiles outputdirectory",
+    argz = argparse.ArgumentParser(usage="flan [options] templatelogfiles [outputdir]",
                                    description="Create one or more 'fake' Apache or Nginx access.log(.#) file(s) from a single real-world example access.log file.")
     argz.add_argument("templatelogfiles")
     argz.add_argument("outputdir",
@@ -992,7 +992,7 @@ def main():
     argz.add_argument("-e", "--end",
                       action="store",
                       dest="end_dt",
-                      help='Latest datetime YYYY-MM-DD HH24:MI:SS to provide in the generated log files. Defaults to midnight tomorrow.')
+                      help='Latest datetime to provide in the generated log files. Defaults to midnight tomorrow.')
     argz.add_argument("-f", "--format",
                       action="store",
                       dest="format",
@@ -1071,7 +1071,7 @@ def main():
     argz.add_argument("-s", "--start",
                       action="store",
                       dest="start_dt",
-                      help='Earliest datetime YYYY-MM-DD HH24:MI:SS to provide in the generated log files. Defaults to midnight today.')
+                      help='Earliest datetime to provide in the generated log files. Defaults to midnight today.')
     argz.add_argument("--stats",
                       action="store_true",
                       dest="stats",
@@ -1082,7 +1082,7 @@ def main():
                       dest="timeformat",
                       default="%-d/%b/%Y:%H:%M:%S",
                       help="Timestamp format to use in the generated log file(s), EXCLUDING TIMEZONE (see -z parameter), "
-                           "in Python strftime format (see http://strftime.org/). Default='%-d/%b/%Y:%H:%M:%S'", )
+                           "in Python strftime format (see http://strftime.org/). Default='%%-d/%%b/%%Y:%%H:%%M:%%S'", )
     argz.add_argument("-u", "--uafilter",
                       action="store",
                       dest="uafilter",
@@ -1122,6 +1122,7 @@ def main():
                            "or pass '' to specify no timezone. Default=your current timezone (%s)." % tz)
 
     options = argz.parse_args()
+
     if options.profile:
         import cProfile
         cProfile.runctx('make_flan(options)', globals(), locals())
