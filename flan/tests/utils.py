@@ -5,6 +5,8 @@ import json
 from flan.flan import supported_nginx_fields, MONTHS, default_format
 import shlex
 from dateutil import parser as dtparser
+import os
+import shutil
 
 linedelimiter = "\r\n"
 
@@ -89,4 +91,20 @@ class Utils:
             return results, error
         else:
             return results
+
+    @staticmethod
+    def wipe(folder):
+        for file in os.listdir(folder):
+            file_path = os.path.join(folder, file)
+            try:
+                if os.path.isfile(file_path):
+                    os.unlink(file_path)
+                elif os.path.isdir(file_path):
+                    shutil.rmtree(file_path)
+            except Exception as e:
+                print(str(e))
+        try:
+            shutil.rmtree(folder)
+        except Exception as e:
+            print(str(e))
 

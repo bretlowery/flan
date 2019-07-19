@@ -4,11 +4,12 @@ from unittest import TestCase, skip
 import inspect
 from dateutil import parser as dtparser
 
-testreplay = os.path.join(os.path.dirname(__file__), 'flan.replay')
-testtemplate1 = os.path.join(os.path.dirname(__file__), '100testrecords.access.log')
-testtemplate2 = os.path.join(os.path.dirname(__file__), 'test*.access.log')
-testtemplate3 = os.path.join(os.path.dirname(__file__), 'test*.access.log*')
-testout = os.path.join(os.path.dirname(__file__), '/testresults')
+testpath = os.path.dirname(__file__)
+testreplay = os.path.join(testpath, 'flan.replay')
+testtemplate1 = os.path.join(testpath, '100testrecords.access.log')
+testtemplate2 = os.path.join(testpath, 'test*.access.log')
+testtemplate3 = os.path.join(testpath, 'test*.access.log*')
+testout = os.path.join(testpath, 'testresults')
 utils = Utils()
 
 
@@ -17,6 +18,18 @@ class FlanTestCases(TestCase):
     #
     # CUSTOM ASSERTS
     #
+
+    def assertFileExists(self, value):
+        fileexists = False
+        if os.path.exists(value):
+            fileexists = os.path.isfile(value)
+        self.assertTrue(fileexists is True)
+
+    def assertFileNotExists(self, value):
+        fileexists = False
+        if os.path.exists(value):
+            fileexists = os.path.isfile(value)
+        self.assertFalse(fileexists is True)
 
     def assertIsDatetime(self, value):
         strvalue = value if isinstance(value, str) else str(value)
@@ -121,6 +134,69 @@ class FlanTestCases(TestCase):
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
         self.chk4success("-o %s" % testtemplate1)
 
+    def test_basic_filewrite(self):
+        """
+        Basic file writing to one output access.log
+        """
+        utils.newtest(inspect.currentframe().f_code.co_name.upper())
+        x = testout
+        if os.path.exists(testout):
+            utils.wipe(testout)
+        os.mkdir(testout)
+        self.chk4success("-n 1 %s %s" % (testtemplate1, testout))
+        self.assertFileExists("%s/access.log" % testout)
+
+    def test_multiple_filewrite(self):
+        """
+        File writing to three output access logs
+        """
+        utils.newtest(inspect.currentframe().f_code.co_name.upper())
+        if os.path.exists(testout):
+            utils.wipe(testout)
+        os.mkdir(testout)
+        self.chk4success("-n 3 %s %s" % (testtemplate1, testout))
+        self.assertFileExists("%s/access.log" % testout)
+        self.assertFileExists("%s/access.log.1" % testout)
+        self.assertFileExists("%s/access.log.2" % testout)
+        self.assertFileNotExists("%s/access.log.3" % testout)
+
+    def test_multiple_filewrite_gzip_1(self):
+        """
+        File writing to three output access logs, one gzipped
+        """
+        utils.newtest(inspect.currentframe().f_code.co_name.upper())
+        if os.path.exists(testout):
+            utils.wipe(testout)
+        os.mkdir(testout)
+        self.chk4success("-n 3 -g 1 %s %s" % (testtemplate1, testout))
+        self.assertFileExists("%s/access.log" % testout)
+        self.assertFileNotExists("%s/access.log.gz" % testout)
+        self.assertFileExists("%s/access.log.1" % testout)
+        self.assertFileNotExists("%s/access.log.1.gz" % testout)
+        self.assertFileNotExists("%s/access.log.2" % testout)
+        self.assertFileExists("%s/access.log.2.gz" % testout)
+        self.assertFileNotExists("%s/access.log.3" % testout)
+        self.assertFileNotExists("%s/access.log.3.gz" % testout)
+
+
+    def test_multiple_filewrite_gzip_2(self):
+        """
+        File writing to three output access logs, two gzipped
+        """
+        utils.newtest(inspect.currentframe().f_code.co_name.upper())
+        if os.path.exists(testout):
+            utils.wipe(testout)
+        os.mkdir(testout)
+        self.chk4success("-n 3 -g 2 %s %s" % (testtemplate1, testout))
+        self.assertFileExists("%s/access.log" % testout)
+        self.assertFileNotExists("%s/access.log.gz" % testout)
+        self.assertFileNotExists("%s/access.log.1" % testout)
+        self.assertFileExists("%s/access.log.1.gz" % testout)
+        self.assertFileNotExists("%s/access.log.2" % testout)
+        self.assertFileExists("%s/access.log.2.gz" % testout)
+        self.assertFileNotExists("%s/access.log.3" % testout)
+        self.assertFileNotExists("%s/access.log.3.gz" % testout)
+
     def test_basic_stdout_defaultcount(self):
         """
         Count records streaming to stdout
@@ -157,7 +233,6 @@ class FlanTestCases(TestCase):
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
         self.chk4validlog("-o %s" % testtemplate1)
 
-
     def test_abort(self):
         """
         Test -a flag, should abort on line #3 in the test file
@@ -187,4 +262,3 @@ class FlanTestCases(TestCase):
         self.chk4datacondition('-i "188.143.232.240" -o %s' % testtemplate1,
                                "remote_addr", "notlike", "^(?!188.143.232.(?<!\d)(?:[1-9]?\d|1\d\d|2(?:[0-4]\d|5[0-5]))(?!\d)).*$",
                                startonline=None, endonline=None)
-
