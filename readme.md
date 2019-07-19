@@ -111,6 +111,12 @@ Allow multiple, chronologically-sequential template logs as input, for long-rang
 v0.0.11<br>
 Replace deprecated OptionParser with argparse
 
+v0.0.12<br>
+Bug fixes and initial unit tests
+
+v0.0.13<br>
+More unit tests
+
 ### Future Enhancements
 
 Definitely:
