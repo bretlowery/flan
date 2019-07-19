@@ -275,4 +275,3 @@ class FlanTestCases(TestCase):
         self.assertFileExists(testreplay)
         self.chk4success("-y -o %s" % testtemplate1)
 
-
