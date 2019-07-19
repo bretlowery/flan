@@ -265,7 +265,7 @@ class FlanTestCases(TestCase):
 
     def test_replaylog(self):
         """
-        Basic streaming to stdout
+        Replay log test
         """
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
         if os.path.isfile(testreplay):
@@ -274,3 +274,5 @@ class FlanTestCases(TestCase):
         self.chk4success("-y -o %s" % testtemplate1)
         self.assertFileExists(testreplay)
         self.chk4success("-y -o %s" % testtemplate1)
+
+
