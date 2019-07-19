@@ -96,6 +96,10 @@ class FlanTestCases(TestCase):
             elif operator == "after":
                 dt = self.assertIsDatetime(chk[element])
                 self.assertTrue(dt >= dtparser.parse(value))
+            elif operator == "like":
+                self.assertRegex(chk[element], value)
+            elif operator == "notlike":
+                self.assertNotRegex(chk[element], value)
             else:
                 self.assertTrue(chk[element] == value)
 
@@ -170,4 +174,17 @@ class FlanTestCases(TestCase):
                                "_ts", "after", '2018-12-31 23:59:59', startonline=None, endonline=None)
         self.chk4datacondition('-s "2019-01-01 00:00:00" -e "2019-01-02 23:59:59" -o %s' % testtemplate1,
                                "_ts", "before", '2019-01-03 00:00:00', startonline=None, endonline=None)
+
+    def test_ipfilter(self):
+        """
+        Test -i flag using example ip 188.143.232.240 in the test log file; see if it obfuscates to 188.143.232.[0-255]
+        Then ensure no other IP pattern other than 188.143.232.[0-255] appears
+        """
+        utils.newtest(inspect.currentframe().f_code.co_name.upper())
+        self.chk4datacondition('-i "188.143.232.240" -o %s' % testtemplate1,
+                               "remote_addr", "like", "^188.143.232.(?<!\d)(?:[1-9]?\d|1\d\d|2(?:[0-4]\d|5[0-5]))(?!\d)",
+                               startonline=None, endonline=None)
+        self.chk4datacondition('-i "188.143.232.240" -o %s' % testtemplate1,
+                               "remote_addr", "notlike", "^(?!188.143.232.(?<!\d)(?:[1-9]?\d|1\d\d|2(?:[0-4]\d|5[0-5]))(?!\d)).*$",
+                               startonline=None, endonline=None)
 
