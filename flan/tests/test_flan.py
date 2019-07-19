@@ -5,11 +5,11 @@ import inspect
 from dateutil import parser as dtparser
 
 testpath = os.path.dirname(__file__)
-testreplay = os.path.join(testpath, 'flan.replay')
 testtemplate1 = os.path.join(testpath, '100testrecords.access.log')
 testtemplate2 = os.path.join(testpath, 'test*.access.log')
 testtemplate3 = os.path.join(testpath, 'test*.access.log*')
 testout = os.path.join(testpath, 'testresults')
+testreplay = os.path.join(testpath, '../flan.replay')
 utils = Utils()
 
 
@@ -262,3 +262,15 @@ class FlanTestCases(TestCase):
         self.chk4datacondition('-i "188.143.232.240" -o %s' % testtemplate1,
                                "remote_addr", "notlike", "^(?!188.143.232.(?<!\d)(?:[1-9]?\d|1\d\d|2(?:[0-4]\d|5[0-5]))(?!\d)).*$",
                                startonline=None, endonline=None)
+
+    def test_replaylog(self):
+        """
+        Basic streaming to stdout
+        """
+        utils.newtest(inspect.currentframe().f_code.co_name.upper())
+        if os.path.isfile(testreplay):
+            os.unlink(testreplay)
+        self.assertFileNotExists(testreplay)
+        self.chk4success("-y -o %s" % testtemplate1)
+        self.assertFileExists(testreplay)
+        self.chk4success("-y -o %s" % testtemplate1)
