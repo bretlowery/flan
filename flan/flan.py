@@ -301,13 +301,36 @@ class DataLoader:
     def replaylogfile_exists():
         return os.path.exists(replaylogfile)
 
-    def print_stats(self):
-        if self.stats and not self.streamout:
-            print('Distribution Stats')
-            for d in range(1, self.delta + 1):
-                print('  Day %d' % d)
-                for h in range(0, 24):
-                    print('      Hour %d:\t%d' % (h, self.stats[d][h]))
+    def emitmeta(self):
+        if self.meta:
+            if self.streamout:
+                import socket
+                hn = socket.gethostname()
+                fqdn = socket.getfqdn()
+                locips = str(socket.gethostbyname_ex(socket.gethostname())[-1])
+                j = ""
+                for d in range(1, self.delta + 1):
+                    for h in range(0, 24):
+                        j = j + '\r\n        {"day": %d, "hour": %d, "count": %d},' % (d, h, self.meta[d][h])
+                j = '[\r\n  {"flan": "%s",' \
+                    '\r\n  "rundate": "%s", ' \
+                    '\r\n  "hostname": "%s", ' \
+                    '\r\n  "hostfqdn": "%s", ' \
+                    '\r\n  "hostips": "%s", ' \
+                    '%s\r\n  }\r\n]' % \
+                    (__version__,
+                     datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
+                     hn,
+                     fqdn,
+                     locips,
+                     '\r\n  "stats": [' + j[:-1] + '\r\n    ]')
+                print(j)
+            else:
+                print('Distribution Stats')
+                for d in range(1, self.delta + 1):
+                    print('  Day %d' % d)
+                    for h in range(0, 24):
+                        print('      Hour %d:\t%d' % (h, self.meta[d][h]))
         return
 
     def __init__(self, options):
@@ -491,15 +514,15 @@ class DataLoader:
         self.ipfilter = ipmatches
 
         # --stats
-        if options.stats:
+        if options.meta:
             # initialize the stats counters with zeros
-            self.stats = {}
+            self.meta = {}
             for d in range(1, self.delta + 1):
-                self.stats[d] = {}
+                self.meta[d] = {}
                 for h in range(0, 24):
-                    self.stats[d][h] = 0
+                    self.meta[d][h] = 0
         else:
-            self.stats = None
+            self.meta = None
 
         # -q
         if not options.quiet:
@@ -837,9 +860,9 @@ class TemplateManager:
         ts = data.timeformat + " " + data.timezone
         ts = timestamp.strftime(ts.rstrip())
         # update stats
-        if data.stats:
+        if data.meta:
             delta = timestamp - data.start_dt
-            data.stats[delta.days + 1][timestamp.hour] += 1
+            data.meta[delta.days + 1][timestamp.hour] += 1
         # return the log string
         return data.format. \
             replace("$time_local", ts). \
@@ -956,7 +979,7 @@ def make_flan(options):
     if not data.quiet:
         print('Total of %d record(s) written successfully from %d parsed template entries.' % (totwritten, manager.totok))
         print('Log generation completed.')
-    data.print_stats()
+    data.emitmeta()
 
     return
 
@@ -1072,11 +1095,11 @@ def main():
                       action="store",
                       dest="start_dt",
                       help='Earliest datetime to provide in the generated log files. Defaults to midnight today.')
-    argz.add_argument("--stats",
+    argz.add_argument("--meta",
                       action="store_true",
-                      dest="stats",
-                      help='Collect and report (at the end) per-hour cumulative counts on all the log entries generated. Use this to verify '
-                           'the spread across your chosen distribution. Default=no stats generated or shown.')
+                      dest="meta",
+                      help='Collect and report (at the end) execution metadata and per-hour cumulative counts on all the log entries generated. Use this to verify '
+                           'the spread across your chosen distribution. Default=no metadata generated or shown.')
     argz.add_argument("-t", "--timeformat",
                       action="store",
                       dest="timeformat",
