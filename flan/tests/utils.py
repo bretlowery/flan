@@ -7,8 +7,8 @@ import shlex
 from dateutil import parser as dtparser
 import os
 import shutil
+import hashlib
 
-linedelimiter = "\r\n"
 
 class Utils:
 
@@ -59,7 +59,7 @@ class Utils:
         print("\r\nRunning %s..." % fn.upper())
 
     @staticmethod
-    def execmd(parameters, returnstdout=False, returnstderr=False):
+    def execmd(parameters, returnstdout=False, returnstderr=False, linedelimiter="\r\n"):
         if parameters is list:
             cmd = ['flan'] + parameters
         else:
@@ -107,4 +107,16 @@ class Utils:
             shutil.rmtree(folder)
         except Exception as e:
             print(str(e))
+
+    @staticmethod
+    def checksum(item):
+        hash_md5 = hashlib.md5()
+        if os.path.isfile(item):
+            with open(item, "rb") as f:
+                for chunk in iter(lambda: f.read(4096), b""):
+                    hash_md5.update(chunk)
+            return hash_md5.hexdigest()
+        elif isinstance(item, str):
+            return hash_md5(item.encode())
+        return hash_md5(str(item).encode())
 

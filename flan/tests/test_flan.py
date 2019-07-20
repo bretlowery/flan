@@ -3,6 +3,7 @@ from flan.tests.utils import Utils
 from unittest import TestCase, skip
 import inspect
 from dateutil import parser as dtparser
+from flan.flan import __version__
 
 testpath = os.path.dirname(__file__)
 testtemplate1 = os.path.join(testpath, '100testrecords.access.log')
@@ -53,16 +54,16 @@ class FlanTestCases(TestCase):
         result = utils.execmd(parameters)
         self.assertNotIn(unexpectedoutput.lower(), result.stdout.lower())
 
-    def chk4success(self, parameters):
-        result = utils.execmd(parameters)
+    def chk4success(self, parameters, linedelimiter="\r\n"):
+        result = utils.execmd(parameters, linedelimiter=linedelimiter)
         self.assertEqual(result.returncode, 0)
 
-    def chk4failure(self, parameters):
-        result = utils.execmd(parameters)
+    def chk4failure(self, parameters, linedelimiter="\r\n"):
+        result = utils.execmd(parameters, linedelimiter=linedelimiter)
         self.assertNotEqual(result.returncode, 0)
 
-    def chk4countequals(self, parameters, countexpected):
-        result, resultslist = utils.execmd(parameters, returnstdout=True)
+    def chk4countequals(self, parameters, countexpected, linedelimiter="\r\n"):
+        result, resultslist = utils.execmd(parameters, returnstdout=True, linedelimiter=linedelimiter)
         self.assertEqual(result.returncode, 0)
         resultsfound = len(resultslist)
         self.assertEqual(resultsfound, countexpected)
@@ -115,6 +116,21 @@ class FlanTestCases(TestCase):
                 self.assertNotRegex(chk[element], value)
             else:
                 self.assertTrue(chk[element] == value)
+
+    # def chksums(self, parameters, compare2checksums=None):
+    #     self.assertTrue(compare2checksums is list if compare2checksums else True)
+    #     result, resultslist = utils.execmd(parameters, returnstdout=True)
+    #     self.assertEqual(result.returncode, 0)
+    #     checksums = []
+    #     for line in resultslist:
+    #         chk = utils.parse_logline(line)
+    #         self.assertIsNotNone(chk)
+    #         checksum = utils.checksum(line)
+    #         if compare2checksums:
+    #             self.assertIn(checksum, compare2checksums)
+    #         else:
+    #             checksums.append(checksum)
+    #     return checksums
 
     #
     # TEST CASES
@@ -265,7 +281,7 @@ class FlanTestCases(TestCase):
 
     def test_replaylog(self):
         """
-        Replay log test
+        Basic replay log test
         """
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
         if os.path.isfile(testreplay):
@@ -274,4 +290,27 @@ class FlanTestCases(TestCase):
         self.chk4success("-y -o %s" % testtemplate1)
         self.assertFileExists(testreplay)
         self.chk4success("-y -o %s" % testtemplate1)
+        self.assertFileExists(testreplay)
+
+
+    def test_nouatag(self):
+        """
+        Test --nouatag flag
+        """
+        utils.newtest(inspect.currentframe().f_code.co_name.upper())
+        self.chk4datacondition('-o %s' % testtemplate1,
+                               "http_user_agent", "like", "(Flan/+\d.+\d.+\d. \(https://bret\.guru\/flan\))$",
+                               startonline=None, endonline=None)
+        self.chk4datacondition('--nouatag -o %s' % testtemplate1,
+                               "http_user_agent", "notlike", "(Flan/+\d.+\d.+\d. \(https://bret\.guru\/flan\))$",
+                               startonline=None, endonline=None)
+
+    def test_linedelimiters(self):
+        """
+        Test a couple of -l flag settings
+        """
+        utils.newtest(inspect.currentframe().f_code.co_name.upper())
+        self.chk4countequals('-r 3 -l CRLF -o %s' % testtemplate1, countexpected=3, linedelimiter="\r\n")
+        self.chk4countequals('-r 5 -l CR -o %s' % testtemplate1, countexpected=5, linedelimiter="\r")
+        self.chk4countequals('-r 7 -l LF -o %s' % testtemplate1, countexpected=7, linedelimiter="\n")
 
