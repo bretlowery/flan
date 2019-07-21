@@ -117,6 +117,9 @@ Bug fixes and initial unit tests
 v0.0.13<br>
 More unit tests
 
+v0.0.14<br>
+Renamed --stats to --meta; added meta info; emit meta in JSON format if both -o and --meta specified; additional unit tests
+
 ### Future Enhancements
 
 Definitely:
@@ -191,6 +194,7 @@ flan [arguments] templatelogspec outputdir
 | -k | If specified, add single quotes to the beginning and end of every generated log entry line. | Do not add quotes. |
 | -l,<br>--linedelimiter | Line delimiter to append to all generated log entries, one of:<br><br>[None, No, False, N, F];<br>[Comma, C];<br>[Tab, T];<br>CR;<br>LF;<br>CRLF.| CRLF |
 | -m,<br>--ipmapping | Defines how IPs are obfuscated, one of:<br><br>onetomany=one template log IP is mapped to one or more obfuscated IPs in the generated logs. This provides better obfuscation but destroys sessions;<br><br>onetoone=maps every template log IP to a single obfuscated IP in the generated logs, preserving sessions but providing minimal obfuscation;<br><br>none=no IP obfuscation, IPs are left as-is.<br><br>If -p (preserve sessions) is specified, this must be either "none" or "onetoone". | If -p is specified, "onetoone". If -p is not specified, "onetomany". |
+| --meta | Replaces the old --stats parameter. Collect and emit (at the end) meta data and per-hour cumulative counts on all the log entries generated. Use this to identify the source of the log files and verify the spread across your chosen distribution. | No meta is emitted. | 
 | -n,<br>--numfiles | The total number of access.log files to generate. Min=1, Max=1000. Example: '-n 4' creates access.log, access.log.1, access.log.2, and access.log.3 in the output directory. | 1 |
 | --nouatag | If specified, excludes the "Flan/<version#> (https://bret.guru/flan)" from the user agent values in the generated log files. | Append the Flan UA tag to all generated UAs. |
 | -o | Stream mode. If specified, ignores the output directory and -n flag values, enables quiet mode (-q), and streams all output to stdout. | Output is written to file(s) in the output directory provided. |
@@ -198,7 +202,6 @@ flan [arguments] templatelogspec outputdir
 | -q | Basho-like stdout. | Proust-like stdout. |
 | -r,<br>--records | The number of entries to write per generated log file. Min=1, Max=1M. | 10,000 |
 | -s,<br>--start | Specifies the start datetime to use for the generated log entries. All log entries will have a timestamp on or after this date. | Midnight today local/server time |
-| --stats | Collect and report (at the end) per-hour cumulative counts on all the log entries generated. Use this to verify the spread across your chosen distribution. | No stats are printed. | 
 | -t,<br>--timeformat | Timestamp format to use in the generated log file(s), EXCLUDING TIMEZONE (see -z parameter), in Python strftime format (see http://strftime.org/). | '%-d/%b/%Y:%H:%M:%S' |
 | -u,<br>--uafilter | Defines the kinds of user agents that will appear in the generated log files, one of: <br><br>bots=bot UAs only;<br><br> nonbots=non-bot UAs only;<br><br>all=both bot and non-bot UAs. | all |
 | -v | Print version number and immediately exit. | |

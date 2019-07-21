@@ -16,7 +16,7 @@ import pickle
 import gzip
 import collections
 
-__version__ = "0.0.13"
+__version__ = "0.0.14"
 
 MONTHS = {
     'Jan': 1,
@@ -1098,8 +1098,10 @@ def main():
     argz.add_argument("--meta",
                       action="store_true",
                       dest="meta",
-                      help='Collect and report (at the end) execution metadata and per-hour cumulative counts on all the log entries generated. Use this to verify '
-                           'the spread across your chosen distribution. Default=no metadata generated or shown.')
+                      help='Collect and emit (at the end) execution metadata and per-hour cumulative counts on all the log entries generated. '
+                           'Use this to identify the source of your generated data and verify '
+                           'the spread across your chosen distribution. IF -o is specified, this is in JSON format, otherwise it is a human-readable print format. '
+                           'Default=no metadata emitted.')
     argz.add_argument("-t", "--timeformat",
                       action="store",
                       dest="timeformat",
