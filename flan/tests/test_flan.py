@@ -72,7 +72,7 @@ class FlanTestCases(TestCase):
             chk = utils.parse_logline(line)
             self.assertIsNotNone(chk)
 
-    def chk4datacondition(self, parameters, element, operator, value, startonline=None, endonline=None):
+    def chk4datacondition(self, parameters, element, operator, value, startonline=None, endonline=None, status='pass'):
         operator = operator.lower()
         result, resultslist = utils.execmd(parameters, returnstdout=True)
         self.assertEqual(result.returncode, 0)
@@ -87,32 +87,60 @@ class FlanTestCases(TestCase):
                     break
             chk = utils.parse_logline(line)
             self.assertTrue(element in chk)
-            if operator == "eq":
-                self.assertTrue(chk[element] == value)
-            elif operator == "lt":
-                self.assertTrue(chk[element] < value)
-            elif operator == "le":
-                self.assertTrue(chk[element] <= value)
-            elif operator == "gt":
-                self.assertTrue(chk[element] > value)
-            elif operator == "ge":
-                self.assertTrue(chk[element] >= value)
-            elif operator == "in":
-                self.assertTrue(chk[element] in value)
-            elif operator == "notin":
-                self.assertTrue(chk[element] not in value)
-            elif operator == "before":
-                dt = self.assertIsDatetime(chk[element])
-                self.assertTrue(dt <= dtparser.parse(value))
-            elif operator == "after":
-                dt = self.assertIsDatetime(chk[element])
-                self.assertTrue(dt >= dtparser.parse(value))
-            elif operator == "like":
-                self.assertRegex(chk[element], value)
-            elif operator == "notlike":
-                self.assertNotRegex(chk[element], value)
+            if status == 'fail':
+                if operator == "eq":
+                    self.assertFalse(chk[element] == value)
+                elif operator == "lt":
+                    self.assertFalse(chk[element] < value)
+                elif operator == "le":
+                    self.assertFalse(chk[element] <= value)
+                elif operator == "gt":
+                    self.assertFalse(chk[element] > value)
+                elif operator == "ge":
+                    self.assertFalse(chk[element] >= value)
+                elif operator == "in":
+                    self.assertFalse(chk[element] in value)
+                elif operator == "notin":
+                    self.assertFalse(chk[element] not in value)
+                elif operator == "before":
+                    dt = self.assertIsDatetime(chk[element])
+                    self.assertFalse(dt <= dtparser.parse(value))
+                elif operator == "after":
+                    dt = self.assertIsDatetime(chk[element])
+                    self.assertFalse(dt >= dtparser.parse(value))
+                elif operator == "like":
+                    self.assertNotRegex(chk[element], value)
+                elif operator == "notlike":
+                    self.assertRegex(chk[element], value)
+                else:
+                    self.assertFalse(chk[element] == value)
             else:
-                self.assertTrue(chk[element] == value)
+                if operator == "eq":
+                    self.assertTrue(chk[element] == value)
+                elif operator == "lt":
+                    self.assertTrue(chk[element] < value)
+                elif operator == "le":
+                    self.assertTrue(chk[element] <= value)
+                elif operator == "gt":
+                    self.assertTrue(chk[element] > value)
+                elif operator == "ge":
+                    self.assertTrue(chk[element] >= value)
+                elif operator == "in":
+                    self.assertTrue(chk[element] in value)
+                elif operator == "notin":
+                    self.assertTrue(chk[element] not in value)
+                elif operator == "before":
+                    dt = self.assertIsDatetime(chk[element])
+                    self.assertTrue(dt <= dtparser.parse(value))
+                elif operator == "after":
+                    dt = self.assertIsDatetime(chk[element])
+                    self.assertTrue(dt >= dtparser.parse(value))
+                elif operator == "like":
+                    self.assertRegex(chk[element], value)
+                elif operator == "notlike":
+                    self.assertNotRegex(chk[element], value)
+                else:
+                    self.assertTrue(chk[element] == value)
 
     # def chksums(self, parameters, compare2checksums=None):
     #     self.assertTrue(compare2checksums is list if compare2checksums else True)
@@ -253,15 +281,32 @@ class FlanTestCases(TestCase):
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
         self.chk4failure("-a -o stdout %s" % testtemplate1)
 
-    def test_specific_dates(self):
+    def test_bad_dates(self):
         """
-        Test -s and -e flags
+        Check for badly formatted or specified -s and -e datetimes
+        """
+        utils.newtest(inspect.currentframe().f_code.co_name.upper())
+        self.chk4success('-s "2019-01-01 00:00:00" -o stdout %s' % testtemplate1)
+        self.chk4success('-e "2029-01-01 00:00:00" -o stdout %s' % testtemplate1)
+        self.chk4failure('-e "2019-01-01 00:00:00" -o stdout %s' % testtemplate1)
+        self.chk4failure('-s "THIS IS NOT A DATETIME" -o stdout %s' % testtemplate1)
+        self.chk4failure('-e "THIS IS NOT A DATETIME EITHER" -o stdout %s' % testtemplate1)
+        self.chk4failure('-s "2019-01-01 00:00:00" -e "1999-01-01 00:00:00" -o stdout %s' % testtemplate1)
+        self.chk4failure('-s "2019-01-01 00:00:00" -e "2019-01-01 00:00:00" -o stdout %s' % testtemplate1)
+
+    def test_date_ranges(self):
+        """
+        Test that -s and -e flags actually generate log entries within those dates
         """
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
         self.chk4datacondition('-s "2019-01-01 00:00:00" -e "2019-01-02 23:59:59" -o stdout %s' % testtemplate1,
                                "_ts", "after", '2018-12-31 23:59:59', startonline=None, endonline=None)
         self.chk4datacondition('-s "2019-01-01 00:00:00" -e "2019-01-02 23:59:59" -o stdout %s' % testtemplate1,
                                "_ts", "before", '2019-01-03 00:00:00', startonline=None, endonline=None)
+        self.chk4datacondition('-s "2019-01-01 00:00:00" -e "2019-01-02 23:59:59" -o stdout %s' % testtemplate1,
+                               "_ts", "before", '2018-12-31 23:59:59', startonline=None, endonline=None, status='fail')
+        self.chk4datacondition('-s "2019-01-01 00:00:00" -e "2019-01-02 23:59:59" -o stdout %s' % testtemplate1,
+                               "_ts", "after", '2019-01-03 00:00:00', startonline=None, endonline=None, status='fail')
 
     def test_ipfilter(self):
         """

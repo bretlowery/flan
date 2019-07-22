@@ -186,6 +186,7 @@ def error(msg):
     print(msg, file=sys.stderr)
     exit(1)
 
+
 def uatostruct(uastring):
     return user_agents.parse(uastring.lstrip('\"').rstrip('\"'))
 
@@ -427,32 +428,48 @@ class MetaManager:
         self.timeformat = options.timeformat
 
         # -s
-        start_dt = None
         try:
             start_dt = dtparser.parse(options.start_dt)
         except:
-            pass
-        if not start_dt:
+            if options.start_dt:
+                error('the start date (-s) specified is not a valid datetime.')
             start_dt = datetime.datetime.combine(datetime.date.today(), datetime.datetime.min.time())
+            pass
         self.start_dt = start_dt
 
         # -e and -j
+        end_dt = None
         self.end_dt = None
         self.period = None
-        if not self.streaming:
+        if options.period:
+            if self.streaming:
+                if options.period < 1:
+                    error('when using continuous streaming (-c) and specifying a distribution period (-j), '
+                          'the period must be greater than zero.')
+            else:
+                error('the distribution period (-j) is unsupported when continuous streaming (-c) is not specified.')
+        if not options.end_dt:
+            end_dt = datetime.datetime.combine(datetime.date.today() + datetime.timedelta(days=1), datetime.datetime.min.time())
+        if options.end_dt:
             try:
                 end_dt = dtparser.parse(options.end_dt)
             except:
-                end_dt = datetime.datetime.combine(datetime.date.today() + datetime.timedelta(days=1), datetime.datetime.min.time())
-                pass
-            delta = end_dt - start_dt
-            self.period = delta.days
-            self.end_dt = end_dt
-        elif not options.period:
-            error("a time period (-j) is required when using continuous streaming (-c).")
+                error('the end date (-e) specified is not a valid datetime.')
+        delta = end_dt - start_dt
+        self.end_dt = end_dt
+        if self.streaming:
+            if options.period:
+                if delta.days < options.period:
+                    error('if a start date (-s), end date (-e) and period (-j) are all specified when streaming (-c), '
+                          'the number of seconds between the start and end dates must not be less than the period value.')
+                self.period = options.period
+            else:
+                self.period = delta.days
         else:
-            self.period = options.period
-            self.end_dt = self.start_dt + timedelta(seconds=self.period)
+            self.period = delta.days
+
+        if self.end_dt <= self.start_dt:
+            error('the end date (-e) must be after the start date (-s).')
 
         # -b
         self.botfilter = self._onein(options.botfilter, ["all", "seen", "unseen"], "seen")
@@ -516,6 +533,7 @@ class MetaManager:
         # -i
         ipmatches = []
         if options.ipfilter:
+            ipmatch = None
             lst = options.ipfilter.strip().split(",")
             for chk in lst:
                 try:
@@ -920,6 +938,8 @@ def make_flan(options):
     currentfile = meta.files
     emit = True
     uas = None
+    log = None
+    totwritten = 0
     while emit:
         #
         # Build the time slice distribution to attribute fake log entries to
@@ -939,7 +959,6 @@ def make_flan(options):
         currentfile = currentfile - 1
         totthisfile = 0
         totwritten = 0
-        log = None
         while totwritten < tot2write:
             #
             # prewrite
@@ -956,6 +975,12 @@ def make_flan(options):
                     timespan = time_distribution[:meta.records]
                     time_distribution = time_distribution[meta.records:]
                 i = 0
+            #
+            # streaming throttle sync
+            #
+#            if meta.streaming:
+#                nextemit = timespan[i]
+#                rightnow = datetime.datetime.now()
             #
             # write one entry
             #
@@ -974,10 +999,12 @@ def make_flan(options):
             totthisfile += 1
             totwritten += 1
             i += 1
+            if i == 10000:
+                i = i
             if not meta.quiet:
                 if totthisfile % 100 == 0:
                     print('Wrote %d entries...' % totthisfile)
-            if not meta.streamtarget and not meta.streaming:
+            if (meta.streamtarget == "none" or not meta.streamtarget) and not meta.streaming:
                 if totthisfile == meta.records:
                     if not meta.quiet:
                         print('Log %s completed.' % log.name)
@@ -996,7 +1023,7 @@ def make_flan(options):
         meta.end_dt = meta.end_dt + timedelta(seconds=meta.period)
         continue
 
-    if log and not meta.streamtarget:
+    if log and meta.streamtarget == "none":
         if not log.closed:
             log.close()
         if not meta.quiet:
@@ -1035,7 +1062,8 @@ def main():
     argz.add_argument("-c", "--continuous",
                       action="store_true",
                       default=False,
-                      dest="streaming"
+                      dest="streaming",
+                      help="TBD"
                       )
     argz.add_argument("-d", "--distribution",
                       action="store",
