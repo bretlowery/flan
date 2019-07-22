@@ -3,7 +3,7 @@ import sys
 import glob
 import argparse
 import datetime
-from datetime import timezone
+from datetime import timezone, timedelta
 from dateutil import parser as dtparser
 import re
 import json
@@ -58,11 +58,11 @@ supported_nginx_fields = '[' \
                          '},' \
                          '{' \
                          '  "name": "$body_bytes_sent",' \
-                         '  "regex": "(\\\\d+)"' \
+                         '  "regex": "(.+)"' \
                          '},' \
                          '{' \
                          '  "name": "$http_referer",' \
-                         '  "regex": "(.+)"' \
+                         '  "regex": "(.*)"' \
                          '},' \
                          '{' \
                          '  "name": "$http_user_agent",' \
@@ -210,7 +210,7 @@ def uatostructstr(uastring):
            )
 
 
-class DataLoader:
+class MetaManager:
 
     def _load_templates(self, options):
         self.contents = []
@@ -244,7 +244,7 @@ class DataLoader:
 
     def _verify_outputdir(self, options):
         output = None
-        if not options.streamout:
+        if options.streamtarget == "none":
             try:
                 output = (options.outputdir.strip() + "/").replace("//", "/")
                 if os.path.exists(output):
@@ -261,14 +261,17 @@ class DataLoader:
         self.outputdir = output
 
     def get_outputfile(self, i, g):
-        return os.path.join(self.outputdir,
+        if self.outputdir:
+            return os.path.join(self.outputdir,
                             "access.log.%d.gz" % i if i != 0 and g > 0
                             else "access.log.gz" if i == 0 and g > 0
                             else "access.log.%d" % i if i != 0
                             else "access.log")
+        else:
+            return None
 
-    def new_outputfile(self):
-        out = self.get_outputfile(self.files, self.gzipindex)
+    def new_outputfile(self, currentfile):
+        out = self.get_outputfile(currentfile, self.gzipindex)
         if self.gzipindex > 0:
             return gzip.open(out, "w+")
         else:
@@ -289,7 +292,10 @@ class DataLoader:
             return default
         choice = choice.strip().lower()
         if choice in choicelist:
-            return choice
+            if choice == "none":
+                return None
+            else:
+                return choice
         else:
             return default
 
@@ -303,7 +309,7 @@ class DataLoader:
 
     def emitmeta(self):
         if self.meta:
-            if self.streamout:
+            if self.streamtarget:
                 import socket
                 hn = socket.gethostname()
                 fqdn = socket.getfqdn()
@@ -335,18 +341,15 @@ class DataLoader:
 
     def __init__(self, options):
 
-        if options.streamout:
+        if options.streamtarget != "none":
             options.quiet = True
 
-#       if options.version or not options.quiet:
         if not options.quiet:
             print("FLAN v", __version__)
-#        if options.version:
-#            sys.exit(0)
 
         try:
-            assert (options.templatelogfiles and (options.outputdir or options.streamout))
-            assert (len(options.templatelogfiles) > 0 and (options.outputdir or options.streamout))
+            assert (options.templatelogfiles and (options.outputdir or options.streamtarget))
+            assert (len(options.templatelogfiles) > 0 and (options.outputdir or options.streamtarget))
         except:
             error("please provide a/an example logfile(s) to read, and either a destination output directory to write access logs to OR specify stream output with -o.")
 
@@ -370,14 +373,18 @@ class DataLoader:
         self.quiet = options.quiet
         # -a
         self.abort = options.abort
+        # -c
+        self.streaming = options.streaming
         # -p
         self.preserve_sessions = options.preserve_sessions
         # -z
         self.timezone = options.timezone
-        # -j
+        # --nouatag
         self.excludeuatag = options.excludeuatag
         # -o
-        self.streamout = options.streamout
+        self.streamtarget = self._onein(options.streamtarget, ["none", "stdout"], "none")
+        if self.streaming and not self.streamtarget:
+            error("-o must specify a valid supported streaming target choice (for example, 'stdout') if -c is also specified")
         # -y
         self.replay = options.replay
         # -k
@@ -388,8 +395,8 @@ class DataLoader:
         if options.files:
             f = options.files
             f = 0 if f < 1 or f > 1000 else f
-        if f == 0:
-            error("the number of files to generate must be between 1 and 1000.")
+        if f == 0 and not self.streamtarget:
+            error("the number of files to generate (-n) must be between 1 and 1000.")
         self.files = f
 
         # -g
@@ -398,8 +405,8 @@ class DataLoader:
             g = options.gzipindex
             if g > self.files or g < 0:
                 error("the gzip index must be between 0 and %d." % self.files)
-            if g > 0 and options.streamout:
-                error("gzip is not supported for stream output.")
+            if g > 0 and self.streamtarget:
+                error("-g cannot be specified if using stream output (-o and/or -c).")
         self.gzipindex = g
 
         # -r
@@ -408,7 +415,7 @@ class DataLoader:
             r = options.records
             r = 0 if r < 1 or r > 1000000 else r
         if r == 0:
-            error("the number of records to generate per file must be between 1 and 1000000.")
+            error("the total number of records to generate per period (-r) must be between 1 and 1000000.")
         self.records = r
 
         # -t
@@ -429,18 +436,23 @@ class DataLoader:
             start_dt = datetime.datetime.combine(datetime.date.today(), datetime.datetime.min.time())
         self.start_dt = start_dt
 
-        # -e
-        end_dt = None
-        try:
-            end_dt = dtparser.parse(options.end_dt)
-        except:
-            pass
-        if not end_dt:
-            end_dt = datetime.datetime.combine(datetime.date.today() + datetime.timedelta(days=1), datetime.datetime.min.time())
-        self.end_dt = end_dt
-
-        delta = end_dt - start_dt
-        self.delta = delta.days
+        # -e and -j
+        self.end_dt = None
+        self.period = None
+        if not self.streaming:
+            try:
+                end_dt = dtparser.parse(options.end_dt)
+            except:
+                end_dt = datetime.datetime.combine(datetime.date.today() + datetime.timedelta(days=1), datetime.datetime.min.time())
+                pass
+            delta = end_dt - start_dt
+            self.period = delta.days
+            self.end_dt = end_dt
+        elif not options.period:
+            error("a time period (-j) is required when using continuous streaming (-c).")
+        else:
+            self.period = options.period
+            self.end_dt = self.start_dt + timedelta(seconds=self.period)
 
         # -b
         self.botfilter = self._onein(options.botfilter, ["all", "seen", "unseen"], "seen")
@@ -514,10 +526,10 @@ class DataLoader:
         self.ipfilter = ipmatches
 
         # --stats
-        if options.meta:
+        if options.meta and not self.streaming:
             # initialize the stats counters with zeros
             self.meta = {}
-            for d in range(1, self.delta + 1):
+            for d in range(1, self.period + 1):
                 self.meta[d] = {}
                 for h in range(0, 24):
                     self.meta[d][h] = 0
@@ -531,7 +543,7 @@ class DataLoader:
             else:
                 print("NOTE: -a not specified; unparseable log entries will be skipped.")
 
-        if not options.overwrite and not options.streamout:
+        if not options.overwrite and not options.streamtarget:
             if self.output_exists():
                 error("one or more target file(s) exist, and --overwrite was not specified.")
         if not options.quiet and not options.replay:
@@ -556,7 +568,7 @@ class UAFactory:
                 explodeduas.append(uad)
         return explodeduas
 
-    def __init__(self, data, template):
+    def __init__(self, meta, template):
         d = {}
         uas = self._explode_uas()
         bs = len(template.botlist) - 1
@@ -573,7 +585,7 @@ class UAFactory:
         return self.uas[random.randint(0, len(self.uas) - 1)]
 
 
-class TemplateManager:
+class DataManager:
 
     @staticmethod
     def _ts_to_logdts(ts):
@@ -611,7 +623,7 @@ class TemplateManager:
             pass
         return replaydata
 
-    def _save_replay_log(self, replaydata, data):
+    def _save_replay_log(self, replaydata, meta):
         try:
             with open(replaylogfile, "wb+") as rl:
                 pickle.dump(replaydata, rl)
@@ -620,7 +632,7 @@ class TemplateManager:
             error("unable to save %s: %s" % (replaylogfile, str(e)))
         return
 
-    def _get_loglineregex(self, data):
+    def _get_loglineregex(self, meta):
         patterns = {}
         fields = json.loads(supported_nginx_fields)
         for field in fields:
@@ -628,13 +640,12 @@ class TemplateManager:
         try:
             reexpr = ''.join(
                     '(?P<%s>%s)' % (g, patterns.get(g, '.*?')) if g else re.escape(c)
-                    for g, c in re.findall(r'\$(\w+)|(.)', data.format))
+                    for g, c in re.findall(r'\$(\w+)|(.)', meta.format))
             return re.compile(reexpr)
         except:
             error("incorrect, incomplete, or unsupported Format (-f) value provided.")
 
-    def _parse_logline(self, line, data):
-
+    def _parse_logline(self, line, meta):
         m = None
         line = line.rstrip()
         try:
@@ -644,15 +655,15 @@ class TemplateManager:
             pass
 
         if not m:
-            if data.abort:
+            if meta.abort:
                 error("Line %d is incorrectly formatted." % self.totread)
-            if not data.quiet:
+            if not meta.quiet:
                 print("Skipping unparseable line %d..." % self.totread)
 
-        if data.customregex:
+        if meta.customregex:
             m = None
             try:
-                m = data.customregex.match(line)
+                m = meta.customregex.match(line)
             except Exception as e:
                 pass
 
@@ -665,7 +676,7 @@ class TemplateManager:
             return None
 
     @staticmethod
-    def _obsfucate_ip(entry, data):
+    def _obsfucate_ip(entry, meta):
         global ipmap, ipmap2
         ipvXaddress = entry["_ip"]
         isbot = entry["_isbot"]
@@ -676,7 +687,7 @@ class TemplateManager:
                 or ipvXaddress.is_private \
                 or ipvXaddress.is_reserved \
                 or isbot \
-                or data.ipmapping == "none":
+                or meta.ipmapping is None:
             newip = str(ipvXaddress)
         else:
             # obfuscate but try to preserve general geolocation, residential vs commercial, etc.
@@ -685,7 +696,7 @@ class TemplateManager:
             # o2m may generate multiple obfuscated IPs from the same IP during the same run
             # o2o always generates/returns the same obfuscated IP from a given input IP during the same run
             tries = 0
-            newip = ipmap[ipkey] if data.ipmapping == "onetoone" and ipkey in ipmap.keys() else None
+            newip = ipmap[ipkey] if meta.ipmapping == "onetoone" and ipkey in ipmap.keys() else None
             while not newip:
                 if ipvXaddress.version == 4:
                     newip = "%s.%s" % (ipkey.rsplit(".", 1)[0], str(random.randint(0, 255)))
@@ -704,7 +715,7 @@ class TemplateManager:
                     newip = None
                     pass
                 if newip:
-                    if data.ipmapping == "onetoone":
+                    if meta.ipmapping == "onetoone":
                         if newip in ipmap2.keys():
                             newip = None
                             tries += 1
@@ -716,12 +727,12 @@ class TemplateManager:
         return newip
 
     @staticmethod
-    def _obfuscate_ua(entry, data, uas):
-        if data.excludeuatag:
+    def _obfuscate_ua(entry, meta, uas):
+        if meta.excludeuatag:
             flantag = ""
         else:
             flantag = " Flan/%s (https://bret.guru/flan)" % __version__
-        if data.preserve_sessions:
+        if meta.preserve_sessions:
             return entry["_ua"].ua_string + flantag
         # pick a ua from the same family of uas
         # if there isn't one, use the one provided
@@ -738,37 +749,38 @@ class TemplateManager:
         newua = str(hits[random.randint(0, h - 1)] if h > 0 else entry["_ua"].ua_string) + flantag
         return newua
 
-    def __init__(self, data):
+    def __init__(self, meta):
 
         self.totread = 0
         self.totok = 0
         self.parsed = []
         self.botlist = []
-        if data.uafilter != "nobots" and data.botfilter != "seen":
+        if meta.uafilter != "nobots" and meta.botfilter != "seen":
             self.botlist = self._load_bot_json()
         earliest_ts = None
         latest_ts = None
 
         replaying = False
 
-        if data.replay:
+        if meta.replay:
 
             self.parsed = self._load_replay_log()
             if self.parsed:
                 replaying = True
                 self.totok = len(self.parsed)
                 self.totread = self.totok
-                if not data.quiet:
+                if not meta.quiet:
                     print('%d preparsed entries loaded from replay log.' % self.totread)
 
         if not replaying:
 
-            self.lineregex = self._get_loglineregex(data)
+            self.lineregex = self._get_loglineregex(meta)
 
-            for entry in data.contents:
+            for entry in meta.contents:
 
                 self.totread += 1
-                parsed_line = self._parse_logline(entry, data)
+
+                parsed_line = self._parse_logline(entry, meta)
                 if not parsed_line:
                     continue
 
@@ -777,15 +789,15 @@ class TemplateManager:
                 if 'http_user_agent' in keys:
                     parsed_line["_ua"] = uatostruct(parsed_line["http_user_agent"])
                     if parsed_line["_ua"].is_bot:
-                        if data.botfilter != "unseen" and data.uafilter != "nobots":
+                        if meta.botfilter != "unseen" and meta.uafilter != "nobots":
                             self.botlist.append(parsed_line["http_user_agent"])
                             parsed_line["_isbot"] = True
                         else:
-                            if not data.quiet:
+                            if not meta.quiet:
                                 print('Skipping bot [excluded by -b/-u settings] found on line %d...' % self.totread)
                             continue
-                    elif data.uafilter == "bots":
-                        if not data.quiet:
+                    elif meta.uafilter == "bots":
+                        if not meta.quiet:
                             print('Skipping non-bot [excluded by -u setting] found on line %d...' % self.totread)
                         continue
                     else:
@@ -805,10 +817,10 @@ class TemplateManager:
 
                 if 'remote_addr' in keys:
                     ip = parsed_line["remote_addr"]
-                    if data.ipfilter:
+                    if meta.ipfilter:
                         chk = ipaddress.ip_address(ip)
                         found = False
-                        for ipmatch in data.ipfilter:
+                        for ipmatch in meta.ipfilter:
                             # == for an address match if ipmatch is an address, in for a network match if ipmatch is a CIDR
                             if "/" in str(ipmatch):
                                 if chk in ipmatch:
@@ -825,7 +837,7 @@ class TemplateManager:
                 self.parsed.append(parsed_line)
                 self.totok += 1
 
-                if not data.quiet:
+                if not meta.quiet:
                     if self.totread % 100 == 0:
                         print('Parsed %d entries...' % self.totread)
 
@@ -835,8 +847,8 @@ class TemplateManager:
         if not replaying and (not earliest_ts or not latest_ts):
             error("no timestamps found in the log file provided. Timestamps are required.")
 
-        if data.replay and not replaying:
-            self._save_replay_log(self.parsed, data)
+        if meta.replay and not replaying:
+            self._save_replay_log(self.parsed, meta)
 
         if self.botlist:
             self.botlist = list(dict.fromkeys(self.botlist))  # remove dupes
@@ -844,27 +856,27 @@ class TemplateManager:
 
         return
 
-    def generate_entry(self, timedist, timeindex, data, uas):
+    def generate_entry(self, timedist, timeindex, meta, uas):
         timestamp = timedist[timeindex]
-        if data.preserve_sessions:
+        if meta.preserve_sessions:
             # pick the next parsed entry in order, since we are preserving sessions and need to keep it in order
             entry = self.parsed[timeindex]
         else:
             # pick a random parsed entry from the previously generated distribution
             entry = self.parsed[random.randint(0, len(self.parsed) - 1)]
         # ip obsfucation
-        ip = self._obsfucate_ip(entry, data)
+        ip = self._obsfucate_ip(entry, meta)
         # ua obfuscation
-        ua = self._obfuscate_ua(entry, data, uas)
+        ua = self._obfuscate_ua(entry, meta, uas)
         # format the timestamp back to desired nginx $time_local format
-        ts = data.timeformat + " " + data.timezone
+        ts = meta.timeformat + " " + meta.timezone
         ts = timestamp.strftime(ts.rstrip())
         # update stats
-        if data.meta:
-            delta = timestamp - data.start_dt
-            data.meta[delta.days + 1][timestamp.hour] += 1
+        if meta.meta:
+            delta = timestamp - meta.start_dt
+            meta.meta[delta.days + 1][timestamp.hour] += 1
         # return the log string
-        return data.format. \
+        return meta.format. \
             replace("$time_local", ts). \
             replace("$remote_addr", ip). \
             replace("$http_user_agent", ua). \
@@ -875,111 +887,125 @@ class TemplateManager:
             replace("$http_referer", entry["http_referer"])
 
 
-def make_distribution(data):
-    seconds = int((data.end_dt - data.start_dt).total_seconds())
-    midpoint = round(seconds / 2.0) if data.disttype == 2 else None
-    tot2write = data.files * data.records
-    aps = tot2write / seconds
-    if data.disttype == 2:
+def make_distribution(meta):
+    midpoint = round(meta.period / 2.0) if meta.disttype == 2 else None
+    tot2write = meta.files * meta.records if meta.files > 0 else meta.records
+    aps = tot2write / meta.period
+    if meta.disttype == 2:
         # normal distribution with a bit of randomization
-        normal_distribution = np.random.normal(midpoint, 0.1866 * seconds, tot2write)
-        time_distribution = [data.start_dt + datetime.timedelta(seconds=int(val))
-                             if 0.00 <= val <= seconds
-                             else data.start_dt + datetime.timedelta(seconds=random.randint(0, seconds))
+        normal_distribution = np.random.normal(midpoint, 0.1866 * meta.period, tot2write)
+        time_distribution = [meta.start_dt + datetime.timedelta(seconds=int(val))
+                             if 0.00 <= val <= meta.period
+                             else meta.start_dt + datetime.timedelta(seconds=random.randint(0, meta.period))
                              for val in normal_distribution]
     else:
         # random dist
-        time_distribution = [data.start_dt + datetime.timedelta(seconds=int(val)) for val in np.random.randint(seconds, size=tot2write)]
+        time_distribution = [meta.start_dt + datetime.timedelta(seconds=int(val)) for val in np.random.randint(meta.period, size=tot2write)]
     time_distribution.sort()  # chronological order
     return tot2write, time_distribution, aps
 
 
 def make_flan(options):
     # verify parameters, and load the template log file or replay log
-    data = DataLoader(options)
+    meta = MetaManager(options)
     # parse and store the template log file data line by line
-    manager = TemplateManager(data)
+    data = DataManager(meta)
     # if preserving sessions, the number of generated entries must = the number in the template log
-    if data.preserve_sessions:
-        data.records = int(manager.totok * 1.0 / data.files)
-        if not data.quiet:
+    if meta.preserve_sessions:
+        meta.records = int(data.totok * 1.0 / meta.files)
+        if not meta.quiet:
             print("NOTE: -p (preserve sessions) specified. Matching template log, setting -r (the number of records per file) = %d * %d files = "
-                  "%d total records will be generated." % (data.records, data.files, data.records * data.files))
-    #
-    # Build the time slice distribution to attribute fake log entries to
-    #
-    tot2write, time_distribution, aps = make_distribution(data)
-    #
-    # Populate ua list with frequency-appropriate selection of bots actually seen in the template log
-    #
-    uas = UAFactory(data, manager)
-    #
-    if not data.quiet:
-        print('Parsed and prepped a total of %d entries (%d successfully, %d skipped).' % (manager.totread, manager.totok, manager.totread - manager.totok))
-    #
-    # Generate the requested fake logs!
-    #
-    data.files = data.files - 1
-    totthisfile = 0
-    totwritten = 0
-    log = None
-    while totwritten < tot2write:
-        #
-        # prewrite
-        #
-        if not log:
-            if data.streamout:
-                log = sys.stdout
-                timespan = time_distribution
-            else:
-                log = data.new_outputfile()
-                if not data.quiet:
-                    print('Beginning write of fake entries to log %s.' % log.name)
-                # pop the oldest r timestamps from the timestamp distribution and use them on the current log file
-                timespan = time_distribution[:data.records]
-                time_distribution = time_distribution[data.records:]
-            i = 0
-        #
-        # write one entry
-        #
-        if data.gzipindex > 0:
-            if data.quote:
-                log.write(str.encode("'%s'%s" % (manager.generate_entry(timespan, i, data, uas.uas), data.delimiter)))
-            else:
-                log.write(str.encode("%s%s" % (manager.generate_entry(timespan, i, data, uas.uas), data.delimiter)))
-        elif data.quote:
-            log.write("'%s'%s" % (manager.generate_entry(timespan, i, data, uas.uas), data.delimiter))
-        else:
-            log.write("%s%s" % (manager.generate_entry(timespan, i, data, uas.uas), data.delimiter))
-        #
-        # postwrite
-        #
-        totthisfile += 1
-        totwritten += 1
-        i += 1
-        if not data.quiet:
-            if totthisfile % 100 == 0:
-                print('Wrote %d entries...' % totthisfile)
-        if not data.streamout:
-            if totthisfile == data.records:
-                if not data.quiet:
-                    print('Log %s completed.' % log.name)
-                log.close()
-                log = None
-                data.files -= 1
-                data.gzipindex -= 1 if data.gzipindex > 0 else 0
-                totthisfile = 0
+                  "%d total records will be generated." % (meta.records, meta.files, meta.records * meta.files))
 
-    if log and not data.streamout:
+    currentfile = meta.files
+    emit = True
+    uas = None
+    while emit:
+        #
+        # Build the time slice distribution to attribute fake log entries to
+        #
+        tot2write, time_distribution, aps = make_distribution(meta)
+        #
+        # First time through, populate ua list with frequency-appropriate selection of bots actually seen in the template log
+        #
+        if not uas:
+            uas = UAFactory(meta, data)
+        #
+        if not meta.quiet and not meta.streaming:
+            print('Parsed and prepped a total of %d entries (%d successfully, %d skipped).' % (data.totread, data.totok, data.totread - data.totok))
+        #
+        # Generate the requested fake logs!
+        #
+        currentfile = currentfile - 1
+        totthisfile = 0
+        totwritten = 0
+        log = None
+        while totwritten < tot2write:
+            #
+            # prewrite
+            #
+            if not log:
+                if meta.streamtarget or meta.streaming:
+                    log = sys.stdout
+                    timespan = time_distribution
+                else:
+                    log = meta.new_outputfile(currentfile)
+                    if not meta.quiet:
+                        print('Beginning write of fake entries to log %s.' % log.name)
+                    # pop the oldest r timestamps from the timestamp distribution and use them on the current log file
+                    timespan = time_distribution[:meta.records]
+                    time_distribution = time_distribution[meta.records:]
+                i = 0
+            #
+            # write one entry
+            #
+            if meta.gzipindex > 0:
+                if meta.quote:
+                    log.write(str.encode("'%s'%s" % (data.generate_entry(timespan, i, meta, uas.uas), meta.delimiter)))
+                else:
+                    log.write(str.encode("%s%s" % (data.generate_entry(timespan, i, meta, uas.uas), meta.delimiter)))
+            elif meta.quote:
+                log.write("'%s'%s" % (data.generate_entry(timespan, i, meta, uas.uas), meta.delimiter))
+            else:
+                log.write("%s%s" % (data.generate_entry(timespan, i, meta, uas.uas), meta.delimiter))
+            #
+            # postwrite
+            #
+            totthisfile += 1
+            totwritten += 1
+            i += 1
+            if not meta.quiet:
+                if totthisfile % 100 == 0:
+                    print('Wrote %d entries...' % totthisfile)
+            if not meta.streamtarget and not meta.streaming:
+                if totthisfile == meta.records:
+                    if not meta.quiet:
+                        print('Log %s completed.' % log.name)
+                    log.close()
+                    log = None
+                    currentfile -= 1
+                    meta.gzipindex -= 1 if meta.gzipindex > 0 else 0
+                    totthisfile = 0
+
+        if not meta.streaming:
+            break
+
+        # streaming loop
+        # adjust dates forward
+        meta.start_dt = meta.end_dt
+        meta.end_dt = meta.end_dt + timedelta(seconds=meta.period)
+        continue
+
+    if log and not meta.streamtarget:
         if not log.closed:
             log.close()
-        if not data.quiet:
+        if not meta.quiet:
             print('Log %s completed.' % log.name)
 
-    if not data.quiet:
-        print('Total of %d record(s) written successfully from %d parsed template entries.' % (totwritten, manager.totok))
+    if not meta.quiet:
+        print('Total of %d record(s) written successfully from %d parsed template entries.' % (totwritten, data.totok))
         print('Log generation completed.')
-    data.emitmeta()
+    meta.emitmeta()
 
     return
 
@@ -995,6 +1021,7 @@ def main():
     argz.add_argument("-a",
                       action="store_true",
                       dest="abort",
+                      default=False,
                       help="If specified, abort on the first (meaning, 'any and every') non-parsable log line found. "
                            "If not specified (the default), skip all non-parsable log lines but process the rest of the entries.")
     argz.add_argument("-b", "--botfilter",
@@ -1005,6 +1032,11 @@ def main():
                            "one of: all=include all bots from both the template log and user-agents.json in the fake log entries, "
                            "seen=ONLY include bots found in the template log file in the fake log entries, "
                            "unseen=ONLY include bots found in the user-agents.json in the fake log entries. Default=seen.")
+    argz.add_argument("-c", "--continuous",
+                      action="store_true",
+                      default=False,
+                      dest="streaming"
+                      )
     argz.add_argument("-d", "--distribution",
                       action="store",
                       dest="distribution",
@@ -1042,16 +1074,27 @@ def main():
     argz.add_argument("--nouatag",
                       action="store_true",
                       dest="excludeuatag",
-                      help="If specified, does not append the custom 'Flan/%s' tag to all of the user agents in the generated file(s). Default=append the tag to all UAFactory." % __version__)
+                      default=False,
+                      help="If specified, does not append the custom 'Flan/%s' tag to all of the user agents in the generated file(s). Default=append "
+                           "the tag to all UAFactory." % __version__)
+    argz.add_argument("-j",
+                      action="store",
+                      dest="period",
+                      type=int,
+                      default=0,
+                      help="If using continuous streaming (-c), defines the length of a single time distribution period. If using normal distribution, "
+                           "the distribution will be this long, with the peak in the middle of it.", )
     argz.add_argument("-k",
                       action="store_true",
                       dest="quote",
+                      default=False,
                       help="If specified, add single quotes to the beginning and end of every generated log entry line. Default=no quotes added.", )
     argz.add_argument("-l", "--linedelimiter",
                       action="store",
                       dest="delimiter",
                       default='crlf',
-                      help="Line delimiter to append to all generated log entries, one of: [none, no, false, n, f], [comma, c], [tab, t], cr, lf, or crlf. Default=crlf.", )
+                      help="Line delimiter to append to all generated log entries, one of: [none, no, false, n, f], [comma, c], [tab, t], cr, lf, or crlf. "
+                           "Default=crlf.", )
     argz.add_argument("-m", "--ipmapping",
                       action="store",
                       dest="ipmapping",
@@ -1063,17 +1106,19 @@ def main():
                       action="store",
                       dest="files",
                       type=int,
-                      default=1,
+                      default=0,
                       help="Number of access.log(.#) file(s) to output. Default=1, min=1, max=1000. Example: '-n 4' creates access.log, "
                            "access.log.1, access.log.2, and access.log.3 in the output directory.", )
     argz.add_argument("-o",
-                      action="store_true",
-                      dest="streamout",
-                      help="If specified, ignores the output directory and -n flag values, enables quiet mode (-q), and streams all output to stdout. "
-                           "If not specified (the default), output is written to file(s) in the output directory provided.")
+                      action="store",
+                      dest="streamtarget",
+                      default="none",
+                      help="If specified, ignores the output directory and -n flag values, enables quiet mode (-q), and streams all output "
+                           "to the target, one of : 'stdout' (other options tbd). If not specified (the default), output is written to file(s) in the output directory provided.")
     argz.add_argument("-p",
                       action="store_true",
                       dest="preserve_sessions",
+                      default=False,
                       help="If specified, preserve sessions (specifically, pathing order for a given IP/UA/user combo). "
                            "'-m onetoone' must also be specified for this to work."
                            "If not specified (the default), do not preserve sessions.")
@@ -1084,6 +1129,7 @@ def main():
     argz.add_argument("-q",
                       action="store_true",
                       dest="quiet",
+                      default=False,
                       help="Basho-like stdout. Default=Proust-like stdout.")
     argz.add_argument("-r", "--records",
                       action="store",
@@ -1098,6 +1144,7 @@ def main():
     argz.add_argument("--meta",
                       action="store_true",
                       dest="meta",
+                      default=False,
                       help='Collect and emit (at the end) execution metadata and per-hour cumulative counts on all the log entries generated. '
                            'Use this to identify the source of your generated data and verify '
                            'the spread across your chosen distribution. IF -o is specified, this is in JSON format, otherwise it is a human-readable print format. '
@@ -1124,6 +1171,7 @@ def main():
     argz.add_argument("-w",
                       action="store_true",
                       dest="overwrite",
+                      default=False,
                       help="If specified, delete any generated log files if they already exist. "
                            "If not specified (the default), exit with an error if any log file to be generated already exists.")
     argz.add_argument("-x", "--regex",
@@ -1131,11 +1179,12 @@ def main():
                       dest="regex",
                       default="",
                       help="Specifies an optional (Python) regex that all template log file lines must match to be used in generating "
-                           "the log files. TemplateManager log entries that do not match this regex are ignored. "
+                           "the log files. DataManager log entries that do not match this regex are ignored. "
                            "If not specified, use all otherwise valid template log lines in generating the output logs.")
     argz.add_argument("-y",
                       action="store_true",
                       dest="replay",
+                      default=False,
                       help="If specified, saves the parsed log file in a replay log (called 'flan.replay' in the current directory) "
                            "for faster subsequent reload and execution on the same data.")
     tz = datetime.datetime.now(timezone.utc).astimezone().strftime('%z')
