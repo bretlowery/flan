@@ -120,6 +120,9 @@ More unit tests
 v0.0.14<br>
 Renamed --stats to --meta; added meta info; emit meta in JSON format if both -o and --meta specified; additional unit tests
 
+v0.0.15<br>
+Initial continuous streaming release w/out throttling or pacing
+
 ### Future Enhancements
 
 Definitely:
@@ -185,12 +188,14 @@ flan [arguments] templatelogspec outputdir
 | ------------------- |:---------------------------------------| ------------- |
 | -a | If specified, halt on any (i.e. the first) unparseable entries in your template log. | Skip any&all unparseable entries |
 | -b,<br>--botfilter | Iff -u is set to 'all' or 'bots', defines which bots appear in the generated log files, one of:<br><br>seen=only use bots that appear in the template log file and are identifiable as robotic;<br><br>unseen=only use bots found in the user-agents.json file (if used, this should be located in the same directory as flan.py);<br><br>all=use bots from both the template log and the user-agents.json file. | seen |
+| -c | ALPHA FEATURE! Continuous streaming mode. If specified, enables continuous streaming. More info here to follow on next release. | No continuous streaming |
 | -d,<br>--distribution | One of:<br><br>normal=use a normal distribution centered midway between start and end datetimes for the time dimension;<br><br>random=use a random ("shotgun blast") distribution. | normal |
 | -e,<br>--end | Specifies the end datetime to use for the generated log entries. All log entries will have a timestamp on or before this date. | Midnight tomorrow local/server time |
 | -f,<br>--format | Your Apache/NGINX log entry format string. | '$remote_addr - $remote_user [$time_local] \"$request\" $status $body_bytes_sent \"$http_referer\" \"$http_user_agent\"' |
 | -g,<br>--gzip | Gzip support. Used in conjunction with the passed -n value, this specifies a file index number at which to begin gzipping generated log files. It must be between 0 and the -n value provided. For example, "-n 5 -g 3" generates log files called "access.log", "access.log.1", "access.log.2.gz", "access.log.3.gz", and "access.log.4.gz": 5 total files, the last 3 of which are gzipped. | 0; no gzipping occurs. |
 | -h | Print out these options on the commandline. | |
 | -i,<br>--ipfilter | If provided, this should specify one or more optional IP(s) and/or CIDR range(s) in quotes that all entries in the template log file must match in order to be used for output log generation. Only lines containing an IP that matches one or more of these will be used. Separate one or more IPs or CIDRs here by commas; for example, '--ipfilter \"123.4.5.6,145.0.0.0/16,2001:db8::/48\"'. | Use all otherwise eligible template log lines and their IPs in generating the output logs. |
+| -j | Continuous streaming periodicity. UNSUPPORTED AS OF v0.0.15. TBD. | N/A |
 | -k | If specified, add single quotes to the beginning and end of every generated log entry line. | Do not add quotes. |
 | -l,<br>--linedelimiter | Line delimiter to append to all generated log entries, one of:<br><br>[None, No, False, N, F];<br>[Comma, C];<br>[Tab, T];<br>CR;<br>LF;<br>CRLF.| CRLF |
 | -m,<br>--ipmapping | Defines how IPs are obfuscated, one of:<br><br>onetomany=one template log IP is mapped to one or more obfuscated IPs in the generated logs. This provides better obfuscation but destroys sessions;<br><br>onetoone=maps every template log IP to a single obfuscated IP in the generated logs, preserving sessions but providing minimal obfuscation;<br><br>none=no IP obfuscation, IPs are left as-is.<br><br>If -p (preserve sessions) is specified, this must be either "none" or "onetoone". | If -p is specified, "onetoone". If -p is not specified, "onetomany". |
