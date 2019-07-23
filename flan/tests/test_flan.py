@@ -72,13 +72,96 @@ class FlanTestCases(TestCase):
             chk = utils.parse_logline(line)
             self.assertIsNotNone(chk)
 
-    def chk4datacondition(self, parameters, element, operator, value, startonline=None, endonline=None, status='pass'):
+    def _dtt(self, x, op, val):
+        dt1 = self.assertIsDatetime(x)
+        dt2 = self.assertIsDatetime(val)
+        if op == "after":
+            self.assertTrue(dt1 >= dt2)
+        elif op == "before":
+            self.assertTrue(dt1 <= dt2)
+        else:
+            ValueError("invalid op passed to _dtt")
+
+    def _dtf(self, x, op, val):
+        dt1 = self.assertIsDatetime(x)
+        dt2 = self.assertIsDatetime(val)
+        if op == "after":
+            self.assertFalse(dt1 >= dt2)
+        elif op == "before":
+            self.assertFalse(dt1 <= dt2)
+        else:
+            ValueError("invalid op passed to _dtf")
+
+    def _passes(self, x, op, value):
+        if op == "eq":
+            self.assertTrue(x == value)
+        elif op == "lt":
+            self.assertTrue(x < value)
+        elif op == "le":
+            self.assertTrue(x <= value)
+        elif op == "gt":
+            self.assertTrue(x > value)
+        elif op == "ge":
+            self.assertTrue(x >= value)
+        elif op == "in":
+            self.assertTrue(x in value)
+        elif op == "notin":
+            self.assertTrue(x not in value)
+        elif op == "before":
+            self._dtt(x, op, value)
+        elif op == "after":
+            self._dtt(x, op, value)
+        elif op == "like":
+            self.assertRegex(x, value)
+        elif op == "notlike":
+            self.assertNotRegex(x, value)
+        else:
+            ValueError("invalid op passed to _passes")
+
+    def _fails(self, x, op, value):
+        if op == "eq":
+            self.assertFalse(x == value)
+        elif op == "lt":
+            self.assertFalse(x < value)
+        elif op == "le":
+            self.assertFalse(x <= value)
+        elif op == "gt":
+            self.assertFalse(x > value)
+        elif op == "ge":
+            self.assertFalse(x >= value)
+        elif op == "in":
+            self.assertFalse(x in value)
+        elif op == "notin":
+            self.assertFalse(x not in value)
+        elif op == "before":
+            self._dtf(x, op, value)
+        elif op == "after":
+            self._dtf(x, op, value)
+        elif op == "like":
+            self.assertNotRegex(x, value)
+        elif op == "notlike":
+            self.assertRegex(x, value)
+        else:
+            ValueError("invalid op passed to _fails")
+
+    def _chk(self, status, chk, element, operator, value):
+        self.assertTrue(element in chk)
+        if status == 'fail':
+            self._fails(chk[element], operator, value)
+        elif status == 'pass':
+            self._passes(chk[element], operator, value)
+        else:
+            ValueError("invalid status passed to _chk")
+
+    def chk4datacondition(self, parameters, element, operator, value, startonline=None, endonline=None, scope="every", status='pass'):
         operator = operator.lower()
         result, resultslist = utils.execmd(parameters, returnstdout=True)
         self.assertEqual(result.returncode, 0)
-        i = 1
+        i = 0
         max = len(resultslist)
+        rtn = False
         for line in resultslist:
+            i += 1
             if startonline:
                 if startonline < i:
                     continue
@@ -86,96 +169,47 @@ class FlanTestCases(TestCase):
                 if i > endonline:
                     break
             chk = utils.parse_logline(line)
-            self.assertTrue(element in chk)
-            if status == 'fail':
-                if operator == "eq":
-                    self.assertFalse(chk[element] == value)
-                elif operator == "lt":
-                    self.assertFalse(chk[element] < value)
-                elif operator == "le":
-                    self.assertFalse(chk[element] <= value)
-                elif operator == "gt":
-                    self.assertFalse(chk[element] > value)
-                elif operator == "ge":
-                    self.assertFalse(chk[element] >= value)
-                elif operator == "in":
-                    self.assertFalse(chk[element] in value)
-                elif operator == "notin":
-                    self.assertFalse(chk[element] not in value)
-                elif operator == "before":
-                    dt = self.assertIsDatetime(chk[element])
-                    self.assertFalse(dt <= dtparser.parse(value))
-                elif operator == "after":
-                    dt = self.assertIsDatetime(chk[element])
-                    self.assertFalse(dt >= dtparser.parse(value))
-                elif operator == "like":
-                    self.assertNotRegex(chk[element], value)
-                elif operator == "notlike":
-                    self.assertRegex(chk[element], value)
-                else:
-                    self.assertFalse(chk[element] == value)
+            if scope == "any":
+                try:
+                    self._chk(status, chk, element, operator, value)
+                    rtn = True
+                except AssertionError:
+                    pass
+                if rtn:
+                    break
+            elif scope == "every":
+                self._chk(status, chk, element, operator, value)
+                rtn = True
             else:
-                if operator == "eq":
-                    self.assertTrue(chk[element] == value)
-                elif operator == "lt":
-                    self.assertTrue(chk[element] < value)
-                elif operator == "le":
-                    self.assertTrue(chk[element] <= value)
-                elif operator == "gt":
-                    self.assertTrue(chk[element] > value)
-                elif operator == "ge":
-                    self.assertTrue(chk[element] >= value)
-                elif operator == "in":
-                    self.assertTrue(chk[element] in value)
-                elif operator == "notin":
-                    self.assertTrue(chk[element] not in value)
-                elif operator == "before":
-                    dt = self.assertIsDatetime(chk[element])
-                    self.assertTrue(dt <= dtparser.parse(value))
-                elif operator == "after":
-                    dt = self.assertIsDatetime(chk[element])
-                    self.assertTrue(dt >= dtparser.parse(value))
-                elif operator == "like":
-                    self.assertRegex(chk[element], value)
-                elif operator == "notlike":
-                    self.assertNotRegex(chk[element], value)
-                else:
-                    self.assertTrue(chk[element] == value)
-
-    # def chksums(self, parameters, compare2checksums=None):
-    #     self.assertTrue(compare2checksums is list if compare2checksums else True)
-    #     result, resultslist = utils.execmd(parameters, returnstdout=True)
-    #     self.assertEqual(result.returncode, 0)
-    #     checksums = []
-    #     for line in resultslist:
-    #         chk = utils.parse_logline(line)
-    #         self.assertIsNotNone(chk)
-    #         checksum = utils.checksum(line)
-    #         if compare2checksums:
-    #             self.assertIn(checksum, compare2checksums)
-    #         else:
-    #             checksums.append(checksum)
-    #     return checksums
+                ValueError("invalid scope passed to chk4datacondition")
+        return rtn
 
     #
     # TEST CASES
     #
 
-    def test_no_args_passed(self):
+    def test_1000_no_args_passed(self):
         """
         User passes no args
         """
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
         self.chk4failure("")
 
-    def test_basic_stdout(self):
+    def test_1010_basic_stdout(self):
         """
         Basic streaming to stdout
         """
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
         self.chk4success("-o stdout %s" % testtemplate1)
 
-    def test_basic_filewrite(self):
+    def test_1020_abort(self):
+        """
+        Test -a flag, should abort on line #3 in the test file
+        """
+        utils.newtest(inspect.currentframe().f_code.co_name.upper())
+        self.chk4failure("-a -o stdout %s" % testtemplate1)
+
+    def test_1030_basic_filewrite(self):
         """
         Basic file writing to one output access.log
         """
@@ -187,7 +221,7 @@ class FlanTestCases(TestCase):
         self.chk4success("-n 1 %s %s" % (testtemplate1, testout))
         self.assertFileExists("%s/access.log" % testout)
 
-    def test_multiple_filewrite(self):
+    def test_1040_multiple_filewrite(self):
         """
         File writing to three output access logs
         """
@@ -201,7 +235,7 @@ class FlanTestCases(TestCase):
         self.assertFileExists("%s/access.log.2" % testout)
         self.assertFileNotExists("%s/access.log.3" % testout)
 
-    def test_multiple_filewrite_gzip_1(self):
+    def test_1050_multiple_filewrite_gzip_1(self):
         """
         File writing to three output access logs, one gzipped
         """
@@ -220,7 +254,7 @@ class FlanTestCases(TestCase):
         self.assertFileNotExists("%s/access.log.3.gz" % testout)
 
 
-    def test_multiple_filewrite_gzip_2(self):
+    def test_1050_multiple_filewrite_gzip_2(self):
         """
         File writing to three output access logs, two gzipped
         """
@@ -238,14 +272,14 @@ class FlanTestCases(TestCase):
         self.assertFileNotExists("%s/access.log.3" % testout)
         self.assertFileNotExists("%s/access.log.3.gz" % testout)
 
-    def test_basic_stdout_defaultcount(self):
+    def test_1060_basic_stdout_defaultcount(self):
         """
         Count records streaming to stdout
         """
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
         self.chk4countequals("-o stdout %s" % testtemplate1, 10000)
 
-    def test_basic_stdout_specifiedcount_small(self):
+    def test_1070_basic_stdout_specifiedcount_small(self):
         """
         Count records streaming to stdout
         """
@@ -253,35 +287,29 @@ class FlanTestCases(TestCase):
         self.chk4countequals("-o stdout -r 17 %s" % testtemplate1, 17)
 
     @skip
-    def test_basic_stdout_specifiedcount_big_longrunning(self):
+    def test_1080_basic_stdout_specifiedcount_big_longrunning(self):
         """
         Count records streaming to stdout
         """
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
         self.chk4countequals("-o stdout -r 987654 %s" % testtemplate1, 987654)
 
-    def test_basic_stdout_specifiedcount_waywaytoobig(self):
+    def test_1090_basic_stdout_specifiedcount_waywaytoobig(self):
         """
         cant set -r that high! error
         """
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
         self.chk4failure("-o stdout -r 9876543210 %s" % testtemplate1)
 
-    def test_basic_stdout_data(self):
+    def test_1100_basic_stdout_data(self):
         """
         Correctly structured fake log entries streaming to stdout
         """
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
         self.chk4validlog("-o stdout %s" % testtemplate1)
 
-    def test_abort(self):
-        """
-        Test -a flag, should abort on line #3 in the test file
-        """
-        utils.newtest(inspect.currentframe().f_code.co_name.upper())
-        self.chk4failure("-a -o stdout %s" % testtemplate1)
 
-    def test_bad_dates(self):
+    def test_1110_bad_dates(self):
         """
         Check for badly formatted or specified -s and -e datetimes
         """
@@ -294,21 +322,57 @@ class FlanTestCases(TestCase):
         self.chk4failure('-s "2019-01-01 00:00:00" -e "1999-01-01 00:00:00" -o stdout %s' % testtemplate1)
         self.chk4failure('-s "2019-01-01 00:00:00" -e "2019-01-01 00:00:00" -o stdout %s' % testtemplate1)
 
-    def test_date_ranges(self):
+    def test_1120_date_range_1(self):
         """
-        Test that -s and -e flags actually generate log entries within those dates
+        Test -s and -e lower bound inclusive
         """
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
         self.chk4datacondition('-s "2019-01-01 00:00:00" -e "2019-01-02 23:59:59" -o stdout %s' % testtemplate1,
-                               "_ts", "after", '2018-12-31 23:59:59', startonline=None, endonline=None)
+                               "_ts", "after", '2018-12-31 23:59:59', startonline=None, endonline=None, status='pass')
+
+    def test_1120_date_range_2(self):
+        """
+        Test -s and -e upper bound inclusive
+        """
+        utils.newtest(inspect.currentframe().f_code.co_name.upper())
         self.chk4datacondition('-s "2019-01-01 00:00:00" -e "2019-01-02 23:59:59" -o stdout %s' % testtemplate1,
-                               "_ts", "before", '2019-01-03 00:00:00', startonline=None, endonline=None)
+                               "_ts", "before", '2019-01-03 00:00:00', startonline=None, endonline=None, status='pass')
+
+    def test_1120_date_range_3(self):
+        """
+        Test -s and -e lower bound exclusive
+        """
+        utils.newtest(inspect.currentframe().f_code.co_name.upper())
         self.chk4datacondition('-s "2019-01-01 00:00:00" -e "2019-01-02 23:59:59" -o stdout %s' % testtemplate1,
                                "_ts", "before", '2018-12-31 23:59:59', startonline=None, endonline=None, status='fail')
+
+    def test_1120_date_range_4(self):
+        """
+        Test -s and -e upper bound exclusive
+        """
+        utils.newtest(inspect.currentframe().f_code.co_name.upper())
         self.chk4datacondition('-s "2019-01-01 00:00:00" -e "2019-01-02 23:59:59" -o stdout %s' % testtemplate1,
                                "_ts", "after", '2019-01-03 00:00:00', startonline=None, endonline=None, status='fail')
 
-    def test_ipfilter(self):
+    def test_1120_date_range_5(self):
+        """
+        Test -s and -e lower bound inclusive boundary condition
+        """
+        utils.newtest(inspect.currentframe().f_code.co_name.upper())
+        anypass = self.chk4datacondition('-s "2019-01-01 00:00:00" -e "2019-01-02 23:59:59" -o stdout %s' % testtemplate1,
+                               "_ts", "after", "2019-01-02 22:00:00", startonline=None, endonline=None, status='pass', scope='any')
+        self.assertTrue(anypass)
+
+    def test_1120_date_range_6(self):
+        """
+        Test -s and -e upper bound inclusive boundary condition
+        """
+        utils.newtest(inspect.currentframe().f_code.co_name.upper())
+        anypass = self.chk4datacondition('-s "2019-01-01 00:00:00" -e "2019-01-02 23:59:59" -o stdout %s' % testtemplate1,
+                               "_ts", "before", '2019-01-01 02:00:00', startonline=None, endonline=None, status='pass', scope='any')
+        self.assertTrue(anypass)
+
+    def test_1130_ipfilter(self):
         """
         Test -i flag using example ip 188.143.232.240 in the test log file; see if it obfuscates to 188.143.232.[0-255]
         Then ensure no other IP pattern other than 188.143.232.[0-255] appears
@@ -321,7 +385,7 @@ class FlanTestCases(TestCase):
                                "remote_addr", "notlike", "^(?!188.143.232.(?<!\d)(?:[1-9]?\d|1\d\d|2(?:[0-4]\d|5[0-5]))(?!\d)).*$",
                                startonline=None, endonline=None)
 
-    def test_replaylog(self):
+    def test_1140_replaylog(self):
         """
         Basic replay log test
         """
@@ -335,7 +399,7 @@ class FlanTestCases(TestCase):
         self.assertFileExists(testreplay)
 
 
-    def test_nouatag(self):
+    def test_1150_nouatag(self):
         """
         Test --nouatag flag
         """
@@ -347,7 +411,7 @@ class FlanTestCases(TestCase):
                                "http_user_agent", "notlike", "(Flan/+\d.+\d.+\d. \(https://bret\.guru\/flan\))$",
                                startonline=None, endonline=None)
 
-    def test_linedelimiters(self):
+    def test_1160_linedelimiters(self):
         """
         Test a couple of -l flag settings
         """
