@@ -15,8 +15,9 @@ import numpy as np
 import pickle
 import gzip
 import collections
+from math import ceil
 
-__version__ = "0.0.14"
+__version__ = "0.0.15"
 
 MONTHS = {
     'Jan': 1,
@@ -389,7 +390,7 @@ class MetaManager:
         # -y
         self.replay = options.replay
         # -k
-        self.quote = options.quote
+        self.quotechar = "'" if options.quote else ""
 
         # -n
         f = 0
@@ -414,6 +415,7 @@ class MetaManager:
         r = 0
         if options.records:
             r = options.records
+            r = 10000 if r == -1 and not options.streaming else 10000 if r == -1 and options.streaming else r
             r = 0 if r < 1 or r > 1000000 else r
         if r == 0:
             error("the total number of records to generate per period (-r) must be between 1 and 1000000.")
@@ -455,18 +457,19 @@ class MetaManager:
                 end_dt = dtparser.parse(options.end_dt)
             except:
                 error('the end date (-e) specified is not a valid datetime.')
-        delta = end_dt - start_dt
+        delta = (end_dt - start_dt).total_seconds()
         self.end_dt = end_dt
         if self.streaming:
             if options.period:
-                if delta.days < options.period:
+                if delta * 86400 < options.period:
                     error('if a start date (-s), end date (-e) and period (-j) are all specified when streaming (-c), '
                           'the number of seconds between the start and end dates must not be less than the period value.')
                 self.period = options.period
             else:
-                self.period = delta.days
+                self.period = delta
         else:
-            self.period = delta.days
+            self.period = delta
+        self.period_days = ceil(self.period / 86400)
 
         if self.end_dt <= self.start_dt:
             error('the end date (-e) must be after the start date (-s).')
@@ -547,7 +550,7 @@ class MetaManager:
         if options.meta and not self.streaming:
             # initialize the stats counters with zeros
             self.meta = {}
-            for d in range(1, self.period + 1):
+            for d in range(1, self.period_days + 1):
                 self.meta[d] = {}
                 for h in range(0, 24):
                     self.meta[d][h] = 0
@@ -908,7 +911,6 @@ class DataManager:
 def make_distribution(meta):
     midpoint = round(meta.period / 2.0) if meta.disttype == 2 else None
     tot2write = meta.files * meta.records if meta.files > 0 else meta.records
-    aps = tot2write / meta.period
     if meta.disttype == 2:
         # normal distribution with a bit of randomization
         normal_distribution = np.random.normal(midpoint, 0.1866 * meta.period, tot2write)
@@ -920,7 +922,7 @@ def make_distribution(meta):
         # random dist
         time_distribution = [meta.start_dt + datetime.timedelta(seconds=int(val)) for val in np.random.randint(meta.period, size=tot2write)]
     time_distribution.sort()  # chronological order
-    return tot2write, time_distribution, aps
+    return tot2write, time_distribution
 
 
 def make_flan(options):
@@ -944,7 +946,7 @@ def make_flan(options):
         #
         # Build the time slice distribution to attribute fake log entries to
         #
-        tot2write, time_distribution, aps = make_distribution(meta)
+        tot2write, time_distribution = make_distribution(meta)
         #
         # First time through, populate ua list with frequency-appropriate selection of bots actually seen in the template log
         #
@@ -985,14 +987,9 @@ def make_flan(options):
             # write one entry
             #
             if meta.gzipindex > 0:
-                if meta.quote:
-                    log.write(str.encode("'%s'%s" % (data.generate_entry(timespan, i, meta, uas.uas), meta.delimiter)))
-                else:
-                    log.write(str.encode("%s%s" % (data.generate_entry(timespan, i, meta, uas.uas), meta.delimiter)))
-            elif meta.quote:
-                log.write("'%s'%s" % (data.generate_entry(timespan, i, meta, uas.uas), meta.delimiter))
+                log.write(str.encode("%s%s%s%s" % (meta.quotechar, data.generate_entry(timespan, i, meta, uas.uas), meta.quotechar, meta.delimiter)))
             else:
-                log.write("%s%s" % (data.generate_entry(timespan, i, meta, uas.uas), meta.delimiter))
+                log.write("%s%s%s%s" % (meta.quotechar, data.generate_entry(timespan, i, meta, uas.uas), meta.quotechar, meta.delimiter))
             #
             # postwrite
             #
@@ -1021,6 +1018,7 @@ def make_flan(options):
         # adjust dates forward
         meta.start_dt = meta.end_dt
         meta.end_dt = meta.end_dt + timedelta(seconds=meta.period)
+        log = None
         continue
 
     if log and meta.streamtarget == "none":
@@ -1110,13 +1108,13 @@ def main():
                       dest="period",
                       type=int,
                       default=0,
-                      help="If using continuous streaming (-c), defines the length of a single time distribution period. If using normal distribution, "
+                      help="If using continuous streaming (-c), defines the length of a single time distribution period in seconds (1d=exactly 24h; no leaps taken into account). If using normal distribution, "
                            "the distribution will be this long, with the peak in the middle of it.", )
     argz.add_argument("-k",
                       action="store_true",
                       dest="quote",
                       default=False,
-                      help="If specified, add single quotes to the beginning and end of every generated log entry line. Default=no quotes added.", )
+                      help="If specified, adds single quotes around each generated log line. Useful for some downstream consumers. Default=no quotes added.")
     argz.add_argument("-l", "--linedelimiter",
                       action="store",
                       dest="delimiter",
@@ -1130,6 +1128,14 @@ def main():
                       help='Obfuscation rule to use for IPs, one of: onetomany=map one IPv4 to up to 255 IPv4 /24 addresses or '
                            'one IPv6 to up to 65536 IPv6 /116 addresses, onetoone=map one IPv4/IPv6 address to one IPv4/IPv6 address '
                            'within the same /24 or /116 block, off=do not obfuscate IPs. Default=onetomany.', )
+    argz.add_argument("--meta",
+                      action="store_true",
+                      dest="meta",
+                      default=False,
+                      help='Collect and emit (at the end) execution metadata and per-hour cumulative counts on all the log entries generated. '
+                           'Use this to identify the source of your generated data and verify '
+                           'the spread across your chosen distribution. IF -o is specified, this is in JSON format, otherwise it is a human-readable print format. '
+                           'Default=no metadata emitted.')
     argz.add_argument("-n", "--numfiles",
                       action="store",
                       dest="files",
@@ -1163,20 +1169,12 @@ def main():
                       action="store",
                       type=int,
                       dest="records",
-                      default=10000,
+                      default=-1,
                       help="Number of records (entries) to create per generated access.log(.#) file. Default=10000, min=1, max=1000000.", )
     argz.add_argument("-s", "--start",
                       action="store",
                       dest="start_dt",
                       help='Earliest datetime to provide in the generated log files. Defaults to midnight today.')
-    argz.add_argument("--meta",
-                      action="store_true",
-                      dest="meta",
-                      default=False,
-                      help='Collect and emit (at the end) execution metadata and per-hour cumulative counts on all the log entries generated. '
-                           'Use this to identify the source of your generated data and verify '
-                           'the spread across your chosen distribution. IF -o is specified, this is in JSON format, otherwise it is a human-readable print format. '
-                           'Default=no metadata emitted.')
     argz.add_argument("-t", "--timeformat",
                       action="store",
                       dest="timeformat",
