@@ -16,8 +16,14 @@ import pickle
 import gzip
 import collections
 from math import ceil
+from time import sleep
+import collections
 
-__version__ = "0.0.15"
+__VERSION__ = "0.0.16"
+
+R_MAX = 100000000
+R_DEFAULT_NOSTREAMING = 10000
+R_DEFAULT_STREAMING = 10000000
 
 MONTHS = {
     'Jan': 1,
@@ -34,9 +40,9 @@ MONTHS = {
     'Dec': 12
 }
 
-default_format = '$remote_addr - $remote_user [$time_local] \"$request\" $status $body_bytes_sent \"$http_referer\" \"$http_user_agent\"'
+DEFAULT_FORMAT = '$remote_addr - $remote_user [$time_local] \"$request\" $status $body_bytes_sent \"$http_referer\" \"$http_user_agent\"'
 
-supported_nginx_fields = '[' \
+SUPPORTED_FIELDS = '[' \
                          '{' \
                          '  "name": "$remote_addr",' \
                          '  "regex": "(\\\\d+.\\\\d+.\\\\d+.\\\\d+)"' \
@@ -77,7 +83,7 @@ supported_nginx_fields = '[' \
 
 # from https://techblog.willshouse.com/2012/01/03/most-common-user-agents/
 # Last Updated: Tue, 18 Jun 2019 13:07:06 +0000
-uafreqlist = \
+UA_FREQUENCIES = \
     '[{"percent":"21.9%","useragent":"replace-with-bot"},' \
     '{"percent":"14.1%","useragent":"Mozilla//5.0 (Windows NT 10.0; Win64; x64) AppleWebKit//537.36 (KHTML, like Gecko) Chrome//74.0.3729.169 Safari//537.36","system":"Chrome Generic Win10"},' \
     '{"percent":"4.7%","useragent":"Mozilla//5.0 (Windows NT 10.0; Win64; x64; rv:67.0) Gecko//20100101 Firefox//67.0","system":"Firefox 67.0 Win10"},' \
@@ -177,9 +183,9 @@ uafreqlist = \
     '{"percent":"0.2%","useragent":"Mozilla//5.0 (Windows NT 10.0; Win64; x64) AppleWebKit//537.36 (KHTML, like Gecko) Chrome//70.0.3538.102 Safari//537.36 Edge//18.18362","system":"Edge 18.0 Win10"},' \
     '{"percent":"0.2%","useragent":"Mozilla//5.0 (Windows NT 10.0; Win64; x64) AppleWebKit//537.36 (KHTML, like Gecko) Chrome//70.0.3538.102 Safari//537.36 Edge//18.18362","system":"Edge 18.0 Win10"}]'
 
-ipmap = {}
-ipmap2 = {}
-replaylogfile = os.path.join(os.path.dirname(__file__), 'flan.replay')
+IPMAP = {}
+IPMAP2 = {}
+REPLAY_LOG_FILE = os.path.join(os.path.dirname(__file__), 'flan.replay')
 
 
 def error(msg):
@@ -307,7 +313,7 @@ class MetaManager:
 
     @staticmethod
     def replaylogfile_exists():
-        return os.path.exists(replaylogfile)
+        return os.path.exists(REPLAY_LOG_FILE)
 
     def emitmeta(self):
         if self.meta:
@@ -326,7 +332,7 @@ class MetaManager:
                     '\r\n  "hostfqdn": "%s", ' \
                     '\r\n  "hostips": "%s", ' \
                     '%s\r\n  }\r\n]' % \
-                    (__version__,
+                    (__VERSION__,
                      datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"),
                      hn,
                      fqdn,
@@ -347,7 +353,7 @@ class MetaManager:
             options.quiet = True
 
         if not options.quiet:
-            print("FLAN v", __version__)
+            print("FLAN v", __VERSION__)
 
         try:
             assert (options.templatelogfiles and (options.outputdir or options.streamtarget))
@@ -391,6 +397,8 @@ class MetaManager:
         self.replay = options.replay
         # -k
         self.quotechar = "'" if options.quote else ""
+        # --pace
+        self.pace = options.pace
 
         # -n
         f = 0
@@ -415,10 +423,10 @@ class MetaManager:
         r = 0
         if options.records:
             r = options.records
-            r = 10000 if r == -1 and not options.streaming else 10000 if r == -1 and options.streaming else r
-            r = 0 if r < 1 or r > 1000000 else r
+            r = R_DEFAULT_NOSTREAMING if r == -1 and not options.streaming else R_DEFAULT_STREAMING if r == -1 and options.streaming else r
+            r = 0 if r < 1 or r > R_MAX else r
         if r == 0:
-            error("the total number of records to generate per period (-r) must be between 1 and 1000000.")
+            error("the total number of records to generate per period (-r) must be between 1 and %d." % R_MAX)
         self.records = r
 
         # -t
@@ -473,6 +481,18 @@ class MetaManager:
 
         if self.end_dt <= self.start_dt:
             error('the end date (-e) must be after the start date (-s).')
+
+        # --rps
+        self.rps = 0
+        if options.rps:
+            if options.rps > 0:
+                if self.pace:
+                    error('throttling (--rps) and pacing (--pace) are mutually exclusive. Choose one or the other.')
+                self.rps = options.rps
+                self.records = int(self.rps * self.period)
+                if options.records > 0 and not options.quiet:
+                        print("NOTE: --rps specified; specified -r value of %d replaced with calculated -r value of %d."
+                              % (options.records, self.records))
 
         # -b
         self.botfilter = self._onein(options.botfilter, ["all", "seen", "unseen"], "seen")
@@ -577,7 +597,7 @@ class UAFactory:
 
     @staticmethod
     def _explode_uas():
-        ualist = json.loads(uafreqlist)
+        ualist = json.loads(UA_FREQUENCIES)
         explodeduas = []
         for ua in ualist:
             n = int(float(ua['percent'].strip("%")) * 10.0)
@@ -635,7 +655,7 @@ class DataManager:
     def _load_replay_log(self):
         replaydata = []
         try:
-            for file in glob.glob(replaylogfile):
+            for file in glob.glob(REPLAY_LOG_FILE):
                 with open(file, "rb") as rl:
                     replaydata = pickle.load(rl)
                     rl.close()
@@ -646,16 +666,16 @@ class DataManager:
 
     def _save_replay_log(self, replaydata, meta):
         try:
-            with open(replaylogfile, "wb+") as rl:
+            with open(REPLAY_LOG_FILE, "wb+") as rl:
                 pickle.dump(replaydata, rl)
                 rl.close()
         except Exception as e:
-            error("unable to save %s: %s" % (replaylogfile, str(e)))
+            error("unable to save %s: %s" % (REPLAY_LOG_FILE, str(e)))
         return
 
     def _get_loglineregex(self, meta):
         patterns = {}
-        fields = json.loads(supported_nginx_fields)
+        fields = json.loads(SUPPORTED_FIELDS)
         for field in fields:
             patterns[str(field["name"]).lstrip("$")] = str(field["regex"])
         try:
@@ -698,7 +718,7 @@ class DataManager:
 
     @staticmethod
     def _obsfucate_ip(entry, meta):
-        global ipmap, ipmap2
+        global IPMAP, IPMAP2
         ipvXaddress = entry["_ip"]
         isbot = entry["_isbot"]
         # we don't obfuscate any of these
@@ -717,7 +737,7 @@ class DataManager:
             # o2m may generate multiple obfuscated IPs from the same IP during the same run
             # o2o always generates/returns the same obfuscated IP from a given input IP during the same run
             tries = 0
-            newip = ipmap[ipkey] if meta.ipmapping == "onetoone" and ipkey in ipmap.keys() else None
+            newip = IPMAP[ipkey] if meta.ipmapping == "onetoone" and ipkey in IPMAP.keys() else None
             while not newip:
                 if ipvXaddress.version == 4:
                     newip = "%s.%s" % (ipkey.rsplit(".", 1)[0], str(random.randint(0, 255)))
@@ -737,14 +757,14 @@ class DataManager:
                     pass
                 if newip:
                     if meta.ipmapping == "onetoone":
-                        if newip in ipmap2.keys():
+                        if newip in IPMAP2.keys():
                             newip = None
                             tries += 1
                             if tries == 1024:
                                 error("excessive number of retries during attempt to obfuscate ip %s using one-to-one method." % ipkey)
                         else:
-                            ipmap[ipkey] = newip
-                            ipmap2[newip] = True
+                            IPMAP[ipkey] = newip
+                            IPMAP2[newip] = True
         return newip
 
     @staticmethod
@@ -752,7 +772,7 @@ class DataManager:
         if meta.excludeuatag:
             flantag = ""
         else:
-            flantag = " Flan/%s (https://bret.guru/flan)" % __version__
+            flantag = " Flan/%s (https://bret.guru/flan)" % __VERSION__
         if meta.preserve_sessions:
             return entry["_ua"].ua_string + flantag
         # pick a ua from the same family of uas
@@ -942,6 +962,8 @@ def make_flan(options):
     uas = None
     log = None
     totwritten = 0
+    meta.streamtarget = "none" if meta.streamtarget is None else meta.streamtarget
+
     while emit:
         #
         # Build the time slice distribution to attribute fake log entries to
@@ -961,13 +983,16 @@ def make_flan(options):
         currentfile = currentfile - 1
         totthisfile = 0
         totwritten = 0
+        i = 0
+        timespan = []
+        log = None
         while totwritten < tot2write:
             #
-            # prewrite
+            # prep to emit
             #
             if not log:
-                if meta.streamtarget or meta.streaming:
-                    log = sys.stdout
+                if meta.streamtarget != "none" or meta.streaming:
+                    log = sys.stdout if meta.streamtarget == "stdout" else None  # other options tbd
                     timespan = time_distribution
                 else:
                     log = meta.new_outputfile(currentfile)
@@ -977,31 +1002,43 @@ def make_flan(options):
                     timespan = time_distribution[:meta.records]
                     time_distribution = time_distribution[meta.records:]
                 i = 0
+                # pacing (re)base
+                pace_base = datetime.datetime.now()
             #
-            # streaming throttle sync
-            #
-#            if meta.streaming:
-#                nextemit = timespan[i]
-#                rightnow = datetime.datetime.now()
-            #
-            # write one entry
+            # emit one entry
             #
             if meta.gzipindex > 0:
                 log.write(str.encode("%s%s%s%s" % (meta.quotechar, data.generate_entry(timespan, i, meta, uas.uas), meta.quotechar, meta.delimiter)))
             else:
                 log.write("%s%s%s%s" % (meta.quotechar, data.generate_entry(timespan, i, meta, uas.uas), meta.quotechar, meta.delimiter))
             #
-            # postwrite
+            # increment counters
             #
             totthisfile += 1
             totwritten += 1
             i += 1
-            if i == 10000:
-                i = i
+            #
+            # pacing & throttling
+            #
+            if meta.pace:
+                clock_offset = (datetime.datetime.now() - pace_base).total_seconds()
+                log_offset = (timespan[i] - timespan[0]).total_seconds()
+                while log_offset > clock_offset:
+                    #  I'm ahead of myself, hold yer horses hoss
+                    sleep(0.1)
+                    clock_offset = (datetime.datetime.now() - pace_base).total_seconds()
+                    log_offset = (timespan[i] - timespan[0]).total_seconds()
+            elif meta.rps > 0:
+                a=a
+                # throttling tbd
+
+            #
+            # post emit
+            #
             if not meta.quiet:
                 if totthisfile % 100 == 0:
                     print('Wrote %d entries...' % totthisfile)
-            if (meta.streamtarget == "none" or not meta.streamtarget) and not meta.streaming:
+            if meta.streamtarget == "none" and not meta.streaming:
                 if totthisfile == meta.records:
                     if not meta.quiet:
                         print('Log %s completed.' % log.name)
@@ -1077,7 +1114,7 @@ def main():
     argz.add_argument("-f", "--format",
                       action="store",
                       dest="format",
-                      default=default_format,
+                      default=DEFAULT_FORMAT,
                       help='Format of the long entry line. Default is: \'$remote_addr - $remote_user [$time_local] \"$request\" '
                            '$status $body_bytes_sent \"$http_referer\" \"$http_user_agent\"\'', )
     argz.add_argument("-g", "--gzip",
@@ -1102,14 +1139,14 @@ def main():
                       dest="excludeuatag",
                       default=False,
                       help="If specified, does not append the custom 'Flan/%s' tag to all of the user agents in the generated file(s). Default=append "
-                           "the tag to all UAFactory." % __version__)
+                           "the tag to all UAFactory." % __VERSION__)
     argz.add_argument("-j",
                       action="store",
                       dest="period",
                       type=int,
                       default=0,
                       help="If using continuous streaming (-c), defines the length of a single time distribution period in seconds (1d=exactly 24h; no leaps taken into account). If using normal distribution, "
-                           "the distribution will be this long, with the peak in the middle of it.", )
+                           "the distribution will be this long, with the peak in the middle of it." )
     argz.add_argument("-k",
                       action="store_true",
                       dest="quote",
@@ -1120,14 +1157,14 @@ def main():
                       dest="delimiter",
                       default='crlf',
                       help="Line delimiter to append to all generated log entries, one of: [none, no, false, n, f], [comma, c], [tab, t], cr, lf, or crlf. "
-                           "Default=crlf.", )
+                           "Default=crlf.")
     argz.add_argument("-m", "--ipmapping",
                       action="store",
                       dest="ipmapping",
                       default='onetomany',
                       help='Obfuscation rule to use for IPs, one of: onetomany=map one IPv4 to up to 255 IPv4 /24 addresses or '
                            'one IPv6 to up to 65536 IPv6 /116 addresses, onetoone=map one IPv4/IPv6 address to one IPv4/IPv6 address '
-                           'within the same /24 or /116 block, off=do not obfuscate IPs. Default=onetomany.', )
+                           'within the same /24 or /116 block, off=do not obfuscate IPs. Default=onetomany.' )
     argz.add_argument("--meta",
                       action="store_true",
                       dest="meta",
@@ -1142,7 +1179,7 @@ def main():
                       type=int,
                       default=0,
                       help="Number of access.log(.#) file(s) to output. Default=1, min=1, max=1000. Example: '-n 4' creates access.log, "
-                           "access.log.1, access.log.2, and access.log.3 in the output directory.", )
+                           "access.log.1, access.log.2, and access.log.3 in the output directory." )
     argz.add_argument("-o",
                       action="store",
                       dest="streamtarget",
@@ -1156,6 +1193,12 @@ def main():
                       help="If specified, preserve sessions (specifically, pathing order for a given IP/UA/user combo). "
                            "'-m onetoone' must also be specified for this to work."
                            "If not specified (the default), do not preserve sessions.")
+    argz.add_argument("--pace",
+                      action="store_true",
+                      dest="pace",
+                      default=False,
+                      help="If specified, syncs the timestamps in the generated log records with the current clock time at generation, "
+                           "so that log entry . Default=no pacing (write/stream as fast as possible).", )
     argz.add_argument("--profile",
                       action="store_true",
                       dest="profile",
@@ -1170,7 +1213,20 @@ def main():
                       type=int,
                       dest="records",
                       default=-1,
-                      help="Number of records (entries) to create per generated access.log(.#) file. Default=10000, min=1, max=1000000.", )
+                      help="Number of records (entries) to create per generated access.log(.#) file. "
+                           "Default=%d (nonstreaming) or %d (streaming), min=1, max=%d."
+                           % (R_DEFAULT_NOSTREAMING, R_DEFAULT_STREAMING, R_MAX)
+                      )
+    argz.add_argument("--rps",
+                      action="store",
+                      type=int,
+                      dest="rps",
+                      default=0,
+                      help="If specified, defines a maximum records-per-second pace with which to write "
+                           "or stream records to either file or streaming output, and computes the -r value from this, "
+                           "ignoring any explicitly specified -r value. "
+                           "The actual pace may be less than this value in practice. "
+                           "Default=no pacing (write/stream as fast as possible)." )
     argz.add_argument("-s", "--start",
                       action="store",
                       dest="start_dt",
@@ -1180,7 +1236,7 @@ def main():
                       dest="timeformat",
                       default="%-d/%b/%Y:%H:%M:%S",
                       help="Timestamp format to use in the generated log file(s), EXCLUDING TIMEZONE (see -z parameter), "
-                           "in Python strftime format (see http://strftime.org/). Default='%%-d/%%b/%%Y:%%H:%%M:%%S'", )
+                           "in Python strftime format (see http://strftime.org/). Default='%%-d/%%b/%%Y:%%H:%%M:%%S'")
     argz.add_argument("-u", "--uafilter",
                       action="store",
                       dest="uafilter",
@@ -1188,11 +1244,12 @@ def main():
                       help="Filter generate log entries by UA, one of: all=use BOTH bot and non-bot UAFactory and template "
                            "log entries with bot/non-bot UAFactory when creating the generated log entries, "
                            "bots=use ONLY bot UAFactory and template log entries with bot UAFactory when creating the generated log entries, "
-                           "nobots=use ONLY non-bot UAFactory and template log entries with non-bot UAFactory when creating the generated log entries. "
+                           "nobots=use ONLY non-bot UAFactory and template log entries with non-bot UAFactory when creating the generated "
+                           "log entries. "
                            "Default=all.")
     argz.add_argument("-v",
                       action="version",
-                      version="Flan/%s" % __version__,
+                      version="Flan/%s" % __VERSION__,
                       help="Print version and exit.")
     argz.add_argument("-w",
                       action="store_true",

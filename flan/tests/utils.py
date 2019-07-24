@@ -2,7 +2,7 @@
 import subprocess
 import re
 import json
-from flan.flan import supported_nginx_fields, MONTHS, default_format
+from flan.flan import SUPPORTED_FIELDS, MONTHS, DEFAULT_FORMAT
 import shlex
 from dateutil import parser as dtparser
 import os
@@ -25,13 +25,13 @@ class Utils:
     @staticmethod
     def _get_loglineregex():
         patterns = {}
-        fields = json.loads(supported_nginx_fields)
+        fields = json.loads(SUPPORTED_FIELDS)
         for field in fields:
             patterns[str(field["name"]).lstrip("$")] = str(field["regex"])
         try:
             reexpr = ''.join(
                     '(?P<%s>%s)' % (g, patterns.get(g, '.*?')) if g else re.escape(c)
-                    for g, c in re.findall(r'\$(\w+)|(.)', default_format))
+                    for g, c in re.findall(r'\$(\w+)|(.)', DEFAULT_FORMAT))
             return re.compile(reexpr)
         except:
             pass
