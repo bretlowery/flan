@@ -1254,16 +1254,16 @@ def main():
                            "Default=%d (nonstreaming) or %d (streaming), min=1, max=%d."
                            % (R_DEFAULT_NOSTREAMING, R_DEFAULT_STREAMING, R_MAX)
                       )
-    argz.add_argument("--rps",
-                      action="store",
-                      type=int,
-                      dest="rps",
-                      default=0,
-                      help="If specified, defines a maximum records-per-second pace with which to write "
-                           "or stream records to either file or streaming output, and computes the -r value from this, "
-                           "ignoring any explicitly specified -r value. "
-                           "The actual pace may be less than this value in practice. "
-                           "Default=no pacing (write/stream as fast as possible)." )
+    # argz.add_argument("--rps",
+    #                   action="store",
+    #                   type=int,
+    #                   dest="rps",
+    #                   default=0,
+    #                   help="If specified, defines a maximum records-per-second pace with which to write "
+    #                        "or stream records to either file or streaming output, and computes the -r value from this, "
+    #                        "ignoring any explicitly specified -r value. "
+    #                        "The actual pace may be less than this value in practice. "
+    #                        "Default=no pacing (write/stream as fast as possible)." )
     argz.add_argument("-s", "--start",
                       action="store",
                       dest="start_dt",
