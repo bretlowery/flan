@@ -14,12 +14,13 @@ import string
 import numpy as np
 import pickle
 import gzip
-import collections
 from math import ceil
 from time import sleep
 import collections
+import operator
+import itertools
 
-__VERSION__ = "0.0.16"
+__VERSION__ = "0.0.17"
 
 R_MAX = 100000000
 R_DEFAULT_NOSTREAMING = 10000
@@ -253,6 +254,8 @@ class MetaManager:
     def _verify_outputdir(self, options):
         output = None
         if options.streamtarget == "none":
+            if not options.outputdir:
+                error("no output directory was specified.")
             try:
                 output = (options.outputdir.strip() + "/").replace("//", "/")
                 if os.path.exists(output):
@@ -897,11 +900,10 @@ class DataManager:
 
         return
 
-    def generate_entry(self, timedist, timeindex, meta, uas):
-        timestamp = timedist[timeindex]
+    def generate_entry(self, timestamp, logindex, meta, uas):
         if meta.preserve_sessions:
             # pick the next parsed entry in order, since we are preserving sessions and need to keep it in order
-            entry = self.parsed[timeindex]
+            entry = self.parsed[logindex]
         else:
             # pick a random parsed entry from the previously generated distribution
             entry = self.parsed[random.randint(0, len(self.parsed) - 1)]
@@ -929,23 +931,51 @@ class DataManager:
 
 
 def make_distribution(meta):
+
+    def _getdtkey(offset):
+        # round down microseconds then add seconds offset
+        return meta.start_dt - datetime.timedelta(microseconds=meta.start_dt.microsecond) + datetime.timedelta(seconds=offset, microseconds=0)
+
     midpoint = round(meta.period / 2.0) if meta.disttype == 2 else None
     tot2write = meta.files * meta.records if meta.files > 0 else meta.records
+    d = {}
     if meta.disttype == 2:
-        # normal distribution with a bit of randomization
+        # create a set of normally-distributed time slots with a sprinkle of random points between the start and end datetimes
         normal_distribution = np.random.normal(midpoint, 0.1866 * meta.period, tot2write)
-        time_distribution = [meta.start_dt + datetime.timedelta(seconds=int(val))
-                             if 0.00 <= val <= meta.period
-                             else meta.start_dt + datetime.timedelta(seconds=random.randint(0, meta.period))
-                             for val in normal_distribution]
+        # uniqueify the generated distribution at the per-second level
+        # if I generated the same datetime X times, add a counter = X
+        for val in normal_distribution:
+            key = _getdtkey(int(val)) \
+                if 0.00 <= val <= meta.period \
+                else _getdtkey(random.randint(0, meta.period))
+            d[key] = d[key] + 1 \
+                if key in d.keys() \
+                else 1
     else:
-        # random dist
-        time_distribution = [meta.start_dt + datetime.timedelta(seconds=int(val)) for val in np.random.randint(meta.period, size=tot2write)]
-    time_distribution.sort()  # chronological order
-    return tot2write, time_distribution
+        # create a set of randomly-distributed time slots between the start and end datetimes
+        # uniqueify the generated distribution at the per-second level
+        # if I generated the same datetime X times, add a counter = X
+        random_distribution = np.random.randint(meta.period, size=tot2write)
+        for val in random_distribution:
+            key = _getdtkey(int(val))
+            d[key] = d[key] + 1 \
+                if key in d.keys() \
+                else 1
+    # sort the generated time distribution in chronological order ascending using fast itemgetter-based sort
+    td = collections.OrderedDict(sorted(d.items(), key=operator.itemgetter(0)))
+    return tot2write, td
 
 
 def make_flan(options):
+
+    def _next(td):
+        try:
+            _next = next(itertools.islice(td.items(), 1))
+        except StopIteration:
+            _next = None
+            pass
+        return _next
+
     # verify parameters, and load the template log file or replay log
     meta = MetaManager(options)
     # parse and store the template log file data line by line
@@ -963,6 +993,7 @@ def make_flan(options):
     log = None
     totwritten = 0
     meta.streamtarget = "none" if meta.streamtarget is None else meta.streamtarget
+    timeslot = None
 
     while emit:
         #
@@ -983,8 +1014,10 @@ def make_flan(options):
         currentfile = currentfile - 1
         totthisfile = 0
         totwritten = 0
-        i = 0
-        timespan = []
+        logindex = 0
+        timeslot = None
+        pace_base = None
+        time_base = None
         log = None
         while totwritten < tot2write:
             #
@@ -993,45 +1026,49 @@ def make_flan(options):
             if not log:
                 if meta.streamtarget != "none" or meta.streaming:
                     log = sys.stdout if meta.streamtarget == "stdout" else None  # other options tbd
-                    timespan = time_distribution
                 else:
                     log = meta.new_outputfile(currentfile)
                     if not meta.quiet:
                         print('Beginning write of fake entries to log %s.' % log.name)
-                    # pop the oldest r timestamps from the timestamp distribution and use them on the current log file
-                    timespan = time_distribution[:meta.records]
-                    time_distribution = time_distribution[meta.records:]
-                i = 0
+                # get 1st entry in the time distribution
+                timeslot = _next(time_distribution)
+                time_base = timeslot[0]
                 # pacing (re)base
                 pace_base = datetime.datetime.now()
+                # beginning of template log
+                logindex = 0
             #
             # emit one entry
             #
+            timestamp = timeslot[0]
             if meta.gzipindex > 0:
-                log.write(str.encode("%s%s%s%s" % (meta.quotechar, data.generate_entry(timespan, i, meta, uas.uas), meta.quotechar, meta.delimiter)))
+                log.write(str.encode("%s%s%s%s" % (meta.quotechar, data.generate_entry(timestamp, logindex, meta, uas.uas), meta.quotechar, meta.delimiter)))
             else:
-                log.write("%s%s%s%s" % (meta.quotechar, data.generate_entry(timespan, i, meta, uas.uas), meta.quotechar, meta.delimiter))
+                log.write("%s%s%s%s" % (meta.quotechar, data.generate_entry(timestamp, logindex, meta, uas.uas), meta.quotechar, meta.delimiter))
             #
-            # increment counters
+            # increment counters, logindex, and available timeslot if needed
             #
             totthisfile += 1
             totwritten += 1
-            i += 1
+            logindex += 1
+            if timeslot[1] == 1:
+                # we're done with this time slot
+                # get next available time slot, freeing up memory in the process
+                del time_distribution[timestamp]
+                timeslot = _next(time_distribution)
+            else:
+                timeslot = (timeslot[0], timeslot[1] - 1)
             #
-            # pacing & throttling
+            # pacing
             #
             if meta.pace:
                 clock_offset = (datetime.datetime.now() - pace_base).total_seconds()
-                log_offset = (timespan[i] - timespan[0]).total_seconds()
+                log_offset = (timeslot[0] - time_base).total_seconds()
                 while log_offset > clock_offset:
                     #  I'm ahead of myself, hold yer horses hoss
                     sleep(0.1)
                     clock_offset = (datetime.datetime.now() - pace_base).total_seconds()
-                    log_offset = (timespan[i] - timespan[0]).total_seconds()
-            elif meta.rps > 0:
-                a=a
-                # throttling tbd
-
+                    log_offset = (timeslot[0] - time_base).total_seconds()
             #
             # post emit
             #

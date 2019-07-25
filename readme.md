@@ -126,6 +126,9 @@ Initial continuous streaming release w/out throttling or pacing
 v0.0.16<br>
 Pacing (clock synchronization) 
 
+v0.0.17<br>
+Performance and memory usage enhancements to streaming, time distribution and log file generation
+
 ### Future Enhancements
 
 Definitely:
