@@ -231,7 +231,3 @@ Here's another resource:
 https://gist.github.com/rm-hull/bd60aed44024e9986e3c
 
 Or, just Google "example access.log files".
-
-
-
-
