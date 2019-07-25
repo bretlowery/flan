@@ -76,7 +76,7 @@ You can specify the overall time distribution you want to appear in the logs, on
 > If you ARE using session preservation (-p), the total number of entries generated is equal to the total number in your provided template log file.
 
 ### Installation
-================
+----------------
 
 1. Download and extract all *.py files, requirements.txt, and (optionally) user-agents.json to a installation directory of your choice. This exercise is left to the reader.
 
@@ -107,7 +107,8 @@ You can specify the overall time distribution you want to appear in the logs, on
    Uninstall, then reinstall.
 
 ### Syntax and Parameters
-=========================
+-------------------------
+
 File mode:
 
 ```
@@ -152,7 +153,7 @@ flan -c [-o outputtarget] [--pace] [arguments] templatelogspec
 | -z,<br>--timezone | Timezone offset in (+/-)HHMM format to append to timestamps in the generated log file(s), or pass '' to specify no timezone. | Your current local/server timezone. |
 
 ### Where can I get access.log files to test with?
-
+--------------------------------------------------
 Test log files are available in the tests folder.
 
 Here's another resource:
@@ -162,7 +163,7 @@ https://gist.github.com/rm-hull/bd60aed44024e9986e3c
 Or, just Google "example access.log files".
 
 ### Released Enhancements
-
+-------------------------
 v0.0.1<br>
 Including bots not in the template log from a list of bots commonly seen in the wild by frequency commonly seen via the user-agent.json file and appropriate -b and -u parameter settings.
 
@@ -215,12 +216,12 @@ v0.0.17<br>
 Performance and memory usage enhancements to streaming, time distribution and log file generation
 
 ### Future Enhancements
-
+-----------------------
 Definitely:
 
-1. Add true streaming output capability to create a continuous stream of chronologically-advancing fake log output.
+1.  Integrations: Splunk, QRadar, LogRhythm, SolarWinds, LogStash/ELK, Graylog, LOGalyze, ManageEngine, FluentD, Apache Flume, RabbitMQ, Redis Pub/Sub, Apache Kafka, Apache Pulsar, Apache Nifi are a few off the top of my head.
 
-2. Integrations: Splunk, QRadar, LogRhythm, SolarWinds, LogStash/ELK, Graylog, LOGalyze, ManageEngine, FluentD, Apache Flume, RabbitMQ, Redis Pub/Sub, Apache Kafka, Apache Pulsar, Apache Nifi are a few off the top of my head.
+2. Could always use tuning.
 
 Possibly:
 
