@@ -5,7 +5,7 @@ import inspect
 from dateutil import parser as dtparser
 
 testpath = os.path.dirname(__file__)
-testtemplate1 = os.path.join(testpath, '100testrecords.access.log')
+testtemplate1 = os.path.join(testpath, '99good1bad.test.access.log')
 testout = os.path.join(testpath, 'testresults')
 testreplay = os.path.join(testpath, '../flan.replay')
 utils = Utils()
