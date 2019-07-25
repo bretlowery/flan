@@ -84,7 +84,7 @@ CPU cycles are mostly taken up by the hidden Bitcoin miner I've added (just kidd
 
 Overall runtime is dependent on the time range between your start and end dates. Use quiet mode when possible.
 
-I'm not currently supporting preservation of sessions across a time distribution period boundary. That would mean I'd have to keep multiple time distribution period cached, and that just eats memory alive. 
+I'm not currently supporting preservation of sessions across a time distribution period boundary. That would mean I'd have to keep multiple time distribution periods cached simultaneously, and that just eats memory alive. 
 
 ### Installation
 ----------------
