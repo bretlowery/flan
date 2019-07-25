@@ -1,5 +1,4 @@
-## FLAN: Fake (Access) Logs for Apache or NGINX
-===============================================
+# FLAN: Fake (Access) Logs for Apache or NGINX
 
 FLAN is a Python 3.x utility that creates one or more fake Apache or NGINX access.log files with fake entries based on the entries from a real-world access.log file that you provide it.
 
