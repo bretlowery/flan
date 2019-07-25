@@ -73,7 +73,19 @@ You can specify the overall time distribution you want to appear in the logs, on
 
 ### How many records does it generate?
 > If you are NOT using session preservation (-p), the total number of entries generated is equal to the -n parameter value TIMES the -r parameter value, spread in the selected distribution across the timeframe specified between the -s and -e parameter start and end datetimes.
+
 > If you ARE using session preservation (-p), the total number of entries generated is equal to the total number in your provided template log file.
+
+### What does it cost, resource-wise?
+Memory usage is primarily due to the need to cache an entire time distribution period in memory to "keep the shape" of the distribution as we go. Using -n 10 -r 1000000, generating 10M entries in total across 10 files, takes about 4-5GB of memory on my Mac. Streaming takes less since I can free memory as we go. This is an area I'm actively working on improving.
+
+Disk usage (if you're using file mode) is highly dependent on the length of the user agents and request paths. With my test file, using -n 10 -r 1000000 I get roughly 250MB of storage per file for a total of 2.5GB total disk.
+
+CPU cycles are mostly taken up by the hidden Bitcoin miner I've added (just kidding).
+
+Overall runtime is dependent on the time range between your start and end dates. Use quiet mode when possible.
+
+I'm not currently supporting preservation of sessions across a time distribution period boundary. That would mean I'd have to keep multiple time distribution period cached, and that just eats memory alive. 
 
 ### Installation
 ----------------
