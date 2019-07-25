@@ -40,7 +40,7 @@ To provide more than one template log file, use wildcards; for example, "/var/lo
 
 You can specify the number of access.log file(s) you want to generate, and the entries per file. Access logs are created using the standard suffixes access.log, access.log.1, access.log.2, etc. 
 
-You can specify start and end datetimea for your generated log entries that can, but don't have to, match the dates in the template logs. There is no guarantee that entries *exactly* matching your start and end dates will be generated, however. They are just guaranteed to be between your selected dates. 
+You can specify start and end datetimes for your generated log entries that can, but don't have to, match the dates in the template logs. There is no guarantee that entries *exactly* matching your start and end dates will be generated, however. They are just guaranteed to be between your selected dates. 
 
 _IP addresses_<br><br>Global addresses in the template log are obfuscated: the last three digits (/24) of an IPv4 or the last four digits (/116) of an IPv6 are randomized. This provides minimal IP obfuscation while maximizing retention of other interesting properties in your IP addresses, like the geolocation of your users, commercial vs residential, etc. 
 
