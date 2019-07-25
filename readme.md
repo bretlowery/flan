@@ -84,6 +84,8 @@ CPU cycles are mostly taken up by the hidden Bitcoin miner I've added (just kidd
 
 Overall runtime is dependent on the time range between your start and end dates. Use quiet mode when possible.
 
+Larger template logs create more accurate output data, but take longer to parse and in particular to go through and obfuscate all of the user agents, given that they are pretty-free-form, often-lengthy strings. Use replay mode to minimize template log parse time.
+
 I'm not currently supporting preservation of sessions across a time distribution period boundary. That would mean I'd have to keep multiple time distribution periods cached simultaneously, and that just eats memory alive. 
 
 ### Installation
