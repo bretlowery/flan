@@ -486,16 +486,16 @@ class MetaManager:
             error('the end date (-e) must be after the start date (-s).')
 
         # --rps
-        self.rps = 0
-        if options.rps:
-            if options.rps > 0:
-                if self.pace:
-                    error('throttling (--rps) and pacing (--pace) are mutually exclusive. Choose one or the other.')
-                self.rps = options.rps
-                self.records = int(self.rps * self.period)
-                if options.records > 0 and not options.quiet:
-                        print("NOTE: --rps specified; specified -r value of %d replaced with calculated -r value of %d."
-                              % (options.records, self.records))
+        # self.rps = 0
+        # if options.rps:
+        #     if options.rps > 0:
+        #         if self.pace:
+        #             error('throttling (--rps) and pacing (--pace) are mutually exclusive. Choose one or the other.')
+        #         self.rps = options.rps
+        #         self.records = int(self.rps * self.period)
+        #         if options.records > 0 and not options.quiet:
+        #                 print("NOTE: --rps specified; specified -r value of %d replaced with calculated -r value of %d."
+        #                       % (options.records, self.records))
 
         # -b
         self.botfilter = self._onein(options.botfilter, ["all", "seen", "unseen"], "seen")
