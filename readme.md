@@ -80,7 +80,7 @@ Memory usage is primarily due to the need to cache an entire time distribution p
 
 Disk usage (if you're using file mode) is highly dependent on the length of the user agents and request paths. With my test file, using -n 10 -r 1000000 I get roughly 250MB of storage per file for a total of 2.5GB total disk.
 
-CPU cycles are mostly taken up by the hidden Bitcoin miner I've added (just kidding).
+CPU cycles are mostly taken up by the hidden Bitcoin miner I've added (just kidding... OR AM I????).
 
 Overall runtime is dependent on the time range between your start and end dates. Use quiet mode when possible.
 
