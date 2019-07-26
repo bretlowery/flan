@@ -90,11 +90,10 @@ Larger template logs create more accurate output data, but take longer to parse 
 I'm not currently supporting preservation of sessions across a time distribution period boundary. That would mean I'd have to keep multiple time distribution periods cached simultaneously, and that just eats memory alive. 
 
 ## Instructions
-----------------
 
 Flan is developed and tested on Python 3.7 (as of July 2019). It's untested on other versions. 
 
-#### Dependencies
+### Dependencies
 >   python-dateutil <br>
    ua-parser <br>
    user-agents<br>
