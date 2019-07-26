@@ -94,12 +94,12 @@ I'm not currently supporting preservation of sessions across a time distribution
 
 Flan is developed and tested on Python 3.7 (as of July 2019). It's untested on other versions. 
 
-_Dependencies_
->python-dateutil <br>
-ua-parser <br>
-user-agents<br>
-numpy <br>
-service <br>
+####Dependencies
+>   python-dateutil <br>
+   ua-parser <br>
+   user-agents<br>
+   numpy <br>
+   service <br>
 
 1. Download and extract all *.py files, *requirements.txt files, and (optionally) user-agents.json to a installation directory of your choice. You don't need the tests folder or its contents if you are not running unit tests. This exercise is left to the reader.
 
