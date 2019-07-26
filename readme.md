@@ -79,17 +79,21 @@ You can specify the overall time distribution you want to appear in the logs, on
 
 ----------------------
 ### What does it cost, resource-wise?
-Memory usage is primarily due to the need to cache an entire time distribution period in memory to "keep the shape" of the distribution as we go. Using -n 10 -r 1000000, generating 10M entries in total across 10 files, takes about 4-5GB of memory on my Mac. Streaming takes less since I can free memory as we go. This is an area I'm actively working on improving.
+Memory is the main resource used by Flan. Memory consumption is primarily influenced by two factors:
+
+1. The size of the template log file used and in particular the number of unique user agent strings within it, and;
+
+2. The need to cache an entire time distribution period in memory to "keep the shape" of the distribution as we go. The number of seconds between -s and -e determines how much memory is used by this.
+
+A 500K-record template log file with -n 10 -r 100000 uses less than 1GB memory on my Mac. Your results may vary. Use Flan's --profile switch to see memory consumed.
 
 Disk usage (if you're using file mode) is highly dependent on the length of the user agents and request paths. With my test file, using -n 10 -r 1000000 I get roughly 250MB of storage per file for a total of 2.5GB total disk.
 
-CPU cycles are mostly taken up by the hidden Bitcoin miner I've added (just kidding... OR AM I????).
+CPU cycles are mostly taken up by the hidden Bitcoin miner I've added (just kidding... Flan is not particularly CPU intensive). 
 
-Overall runtime is dependent on the time range between your start and end dates. Use quiet mode when possible.
+Overall runtime is dependent on the time range between your start and end dates, the size of your template log, and the total number of records you are generating. Larger template logs create more accurate output data, but take longer to parse and in particular to go through and obfuscate all of the user agents, given that they are pretty-free-form, often-lengthy strings. Use replay mode to minimize template log parse time. Quite mode will also reduce runtime.
 
-Larger template logs create more accurate output data, but take longer to parse and in particular to go through and obfuscate all of the user agents, given that they are pretty-free-form, often-lengthy strings. Use replay mode to minimize template log parse time.
-
-I'm not currently supporting preservation of sessions across a time distribution period boundary. That would mean I'd have to keep multiple time distribution periods cached simultaneously, and that just eats memory alive. 
+I'm not currently supporting preservation of sessions across a time distribution period boundary. That would mean I'd have to keep multiple time distribution periods cached simultaneously, and that just eats memory alive.
 
 ## Instructions
 
