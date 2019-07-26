@@ -14,6 +14,7 @@ FLAN is a Python 3.x utility that creates one or more fake Apache or NGINX acces
 8. Supports and obfuscates both IPv4 and IPv6, using intelligent rules that guarantee valid global IPs while maintaining non-global IPs like loopback and private networks as-is without obfuscation;
 9. Write to files, or stream results to stdout;
 10. Optionally gzip any or all generated log files.
+11. Run interactively, or as a service/daemon.
 
 ### Background
 --------------
@@ -91,7 +92,16 @@ I'm not currently supporting preservation of sessions across a time distribution
 ### Installation
 ----------------
 
-1. Download and extract all *.py files, requirements.txt, and (optionally) user-agents.json to a installation directory of your choice. This exercise is left to the reader.
+Flan is developed and tested on Python 3.7 (as of July 2019). It's untested on other versions. 
+
+_Dependencies_
+>python-dateutil <br>
+ua-parser <br>
+user-agents<br>
+numpy <br>
+service <br>
+
+1. Download and extract all *.py files, *requirements.txt files, and (optionally) user-agents.json to a installation directory of your choice. You don't need the tests folder or its contents if you are not running unit tests. This exercise is left to the reader.
 
 2. (Optional) Set up a Python 3.7 virtualenv and activate it. This exercise is left to the reader.
 
@@ -117,21 +127,34 @@ I'm not currently supporting preservation of sessions across a time distribution
    
 ### Update
 
-   Uninstall, then reinstall.
+Uninstall, then reinstall using the same installation instructions listed above.
 
 ### Syntax and Parameters
 -------------------------
 
-File mode:
+#####INTERACTIVE MODE (uses commandline arguments)
+
+File output:
 
 ```
 flan -n <number of files to write> -r <number of records per file> [arguments] templatelogspec outputdir
 ```
-Streaming mode:
+Streaming output:
 
 ```
 flan -c [-o outputtarget] [--pace] [arguments] templatelogspec
 ```
+
+#####SERVICE/DAEMON MODE (uses flan.config.json)
+
+```
+flan [ start | stop | status ]
+```
+
+#####CONTROLLING FLAN VIA ARGUMENTS AND CONFIGS
+
+For service mode, use flan.config.json instead of commandline arguments. Each of its entries map one-to-one to one of the arguments below. Quiet (-q), stats (--stats), profile (--profile), and overwrite (-w) are set to fixed defaults in service mode and if set in flan.config.json are ignored. flan.config.json is ignored in interactive mode.
+
 
 | Commandline Argument            | Definition                             | Default       |
 | ------------------- |:---------------------------------------| ------------- |
@@ -227,6 +250,9 @@ Pacing (clock synchronization)
 
 v0.0.17<br>
 Performance and memory usage enhancements to streaming, time distribution and log file generation
+
+v0.0.18<br>
+Service/daemon mode available
 
 ### Future Enhancements
 -----------------------

@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='flan',
-      version='0.0.17',
+      version='0.0.18',
       packages=['flan'],
       entry_points={
           'console_scripts': [

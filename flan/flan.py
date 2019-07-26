@@ -19,8 +19,9 @@ from time import sleep
 import collections
 import operator
 import itertools
+from service import Service
 
-__VERSION__ = "0.0.17"
+__VERSION__ = "0.0.18"
 
 R_MAX = 100000000
 R_DEFAULT_NOSTREAMING = 10000
@@ -187,7 +188,7 @@ UA_FREQUENCIES = \
 IPMAP = {}
 IPMAP2 = {}
 REPLAY_LOG_FILE = os.path.join(os.path.dirname(__file__), 'flan.replay')
-
+SERVICE_CONFIG_FILE = os.path.join(os.path.dirname(__file__), 'flan.config.json')
 
 def error(msg):
     msg = "ERROR: %s" % msg.strip()
@@ -350,7 +351,7 @@ class MetaManager:
                         print('      Hour %d:\t%d' % (h, self.meta[d][h]))
         return
 
-    def __init__(self, options):
+    def __init__(self, options, servicemode=False):
 
         if options.streamtarget != "none":
             options.quiet = True
@@ -380,6 +381,8 @@ class MetaManager:
         # verify inputs
         #
 
+        #servicemode
+        self.servicemode = servicemode
         # -q
         self.quiet = options.quiet
         # -a
@@ -395,7 +398,9 @@ class MetaManager:
         # -o
         self.streamtarget = self._onein(options.streamtarget, ["none", "stdout"], "none")
         if self.streaming and not self.streamtarget:
-            error("-o must specify a valid supported streaming target choice (for example, 'stdout') if -c is also specified")
+            error("-o must specify a valid supported streaming target choice (for example, 'stdout') if -c is also specified.")
+        if self.servicemode and self.streaming and self.streamtarget == "stdout":
+            error("stdout streaming is not supported in service mode.")
         # -y
         self.replay = options.replay
         # -k
@@ -966,7 +971,7 @@ def make_distribution(meta):
     return tot2write, td
 
 
-def make_flan(options):
+def make_flan(options, servicemode=False):
 
     def _next(td):
         try:
@@ -977,7 +982,7 @@ def make_flan(options):
         return _next
 
     # verify parameters, and load the template log file or replay log
-    meta = MetaManager(options)
+    meta = MetaManager(options, servicemode)
     # parse and store the template log file data line by line
     data = DataManager(meta)
     # if preserving sessions, the number of generated entries must = the number in the template log
@@ -993,7 +998,6 @@ def make_flan(options):
     log = None
     totwritten = 0
     meta.streamtarget = "none" if meta.streamtarget is None else meta.streamtarget
-    timeslot = None
 
     while emit:
         #
@@ -1041,6 +1045,7 @@ def make_flan(options):
             # emit one entry
             #
             timestamp = timeslot[0]
+            spots = timeslot[1]
             if meta.gzipindex > 0:
                 log.write(str.encode("%s%s%s%s" % (meta.quotechar, data.generate_entry(timestamp, logindex, meta, uas.uas), meta.quotechar, meta.delimiter)))
             else:
@@ -1051,24 +1056,25 @@ def make_flan(options):
             totthisfile += 1
             totwritten += 1
             logindex += 1
-            if timeslot[1] == 1:
-                # we're done with this time slot
+            if spots == 1:
+                # no spots left, we're done with this time slot
                 # get next available time slot, freeing up memory in the process
                 del time_distribution[timestamp]
                 timeslot = _next(time_distribution)
             else:
-                timeslot = (timeslot[0], timeslot[1] - 1)
+                # one spot filled; decrement the number of available spots we have with this timestamp
+                timeslot = (timestamp, spots - 1)
             #
             # pacing
             #
             if meta.pace:
                 clock_offset = (datetime.datetime.now() - pace_base).total_seconds()
-                log_offset = (timeslot[0] - time_base).total_seconds()
+                log_offset = (timestamp - time_base).total_seconds()
                 while log_offset > clock_offset:
                     #  I'm ahead of myself, hold yer horses hoss
                     sleep(0.1)
                     clock_offset = (datetime.datetime.now() - pace_base).total_seconds()
-                    log_offset = (timeslot[0] - time_base).total_seconds()
+                    log_offset = (timestamp - time_base).total_seconds()
             #
             # post emit
             #
@@ -1109,7 +1115,7 @@ def make_flan(options):
     return
 
 
-def main():
+def interactiveMode():
     # command-line parsing
     argz = argparse.ArgumentParser(usage="flan [options] templatelogfiles [outputdir]",
                                    description="Create one or more 'fake' Apache or Nginx access.log(.#) file(s) from a single real-world example access.log file.")
@@ -1322,8 +1328,92 @@ def main():
         cProfile.runctx('make_flan(options)', globals(), locals())
     else:
         make_flan(options)
+
+
+class FlanService(Service):
+
+    def run(self):
+        # set up defaults when running as a service
+        from argparse import Namespace
+        options = Namespace(
+                abort=False,
+                botfilter='seen',
+                delimiter='crlf',
+                distribution='normal',
+                end_dt=None,
+                excludeuatag=False,
+                files=10,
+                format='$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent"',
+                gzipindex=0,
+                ipfilter='',
+                ipmapping='onetomany',
+                meta=False,
+                outputdir='',
+                overwrite=True,
+                pace=False,
+                period=0,
+                preserve_sessions=False,
+                profile=False,
+                quiet=True,
+                quote=False,
+                records=10000,
+                regex='',
+                replay=False,
+                start_dt=None,
+                streaming=False,
+                streamtarget='none',
+                templatelogfiles='',
+                timeformat='%-d/%b/%Y:%H:%M:%S',
+                timezone='-0400',
+                uafilter='all')
+        immutable_service_settings = ["meta", "overwrite", "profile", "quiet"]
+        # look for flan.config.json
+        # update default service settings with the entries in the flan.config.json
+        try:
+            with open(SERVICE_CONFIG_FILE) as config_file:
+                configjson = json.load(config_file)
+        except:
+            error('flan.config.json was not found, is not readable, has insufficient read permissions, or is not a valid JSON file')
+            exit(1)
+        for setting in configjson:
+            setting = setting.strip().lower()
+            if setting not in immutable_service_settings:
+                try:
+                    options.vars()[setting] = configjson[setting]
+                except:
+                    error('unrecognized setting "%s" in flan.config.json' % setting)
+                    exit(1)
+        # make flan
+        make_flan(options, servicemode=True)
+
+    def show_status(self):
+        return
+
+
+def main():
+    try:
+        cmd = sys.argv[1].strip().lower()
+    except IndexError:
+        cmd = None
+        pass
+    if cmd in ['start', 'stop', 'status']:
+        service_name = 'Flan v%s Service' % __VERSION__
+        service = FlanService(service_name, pid_dir='/tmp')
+        if cmd == "start":
+            service.start()
+        elif cmd == "stop":
+            service.stop()
+        elif cmd == "status":
+            if service.is_running():
+                print("%s is running." % service_name)
+            else:
+                print("%s is not running." % service_name)
+            service.show_status()
+    else:
+        interactiveMode()
     exit(0)
 
 
 if __name__ == "__main__":
     main()
+
