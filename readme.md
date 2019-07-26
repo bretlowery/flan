@@ -2,8 +2,8 @@
 
 FLAN is a Python 3.x utility that creates one or more fake Apache or NGINX access.log files with fake entries based on the entries from a real-world access.log file that you provide it. The name itself is actually fake: it can generate logs for anything that consumes NCSA Combined Log Format, but FLNCSACLF seems like the name of a Wonka-brand prescription nasal spray rather than a fungible Github project acronym, so.
 
-### Feature Highlights
 ----------------------
+### Feature Highlights
 1. It's fast, with speed enhancements like replay ability;
 2. It's real, generating its data in part from one or more example "template" log file(s) you provide and using valid IPs and user agent combos that make sense;
 3. You can optionally preserve sessions and session semantics while obfuscating their original source;
@@ -16,8 +16,8 @@ FLAN is a Python 3.x utility that creates one or more fake Apache or NGINX acces
 10. Optionally gzip any or all generated log files.
 11. Run interactively, or as a service/daemon.
 
-### Background
 --------------
+### Background
 I needed a way to test some systems that consume access.log entries in an environment where:
 
 1. Volume/scale was  high (millions of users/sessions);
@@ -33,8 +33,8 @@ I looked for solutions but they lacked. 90% generated random data, including inv
 
 FLAN generates up to 1K test access.log files of up to 1M records each, per run. On my Mac, it can generate 200K records in about 30 seconds in verbose mode with basic settings (enabling session preservation with -p adds about 5x to the runtime) so it's way way fast on any ol' EC2 or GCE server including the free tier stuff.
 
-### Flan generates log files semantically similar to production
 ---------------------------------------------------------------
+### Flan generates log files semantically similar to production
 To ensure your fake logs look as semantically real as your production ones, it reads one or more "template" access.logs from a real production system that you provide (hereinafter referred to as the "template logs"). It doesn't matter how many records the template logs contain, but the longer it/they are, the more realistic your generated fake logs will be. If you do NOT specify session preservation with the -p flag (described below), you can specify the number of files and records to generate, and your template log(s) can be bigger or smaller than your generated log file(s). If you specify session preservation, your generated log files will contain the same number of records as the total number of records contained in your template log file(s).
 
 To provide more than one template log file, use wildcards; for example, "/var/logs/access.log*". Your template logs may be gzipped; if they have a ".gz" extension, FLAN will unzip them when it reads them. You can mix both non-zipped and gzipped files in your wildcard spec.
@@ -55,27 +55,29 @@ Real-device agents are generated from a list of the top real-world user agents i
 
 You have the ability to control what percentage of bots vs non-bot UAs you get (currently, this is hard-coded to what I use, 21.9% bots and 78.1% everything else, but that's easy to change). You can optionally include bots from a list of common bots found in the supplied user-agents.json file, an d/or optionally include only those bots that are found in your template file, or you can choose to include no bots at all. The -u and -b commandline parameters control what bots if any appear. See the commandline parameter descriptions for details. 
 
-### IP/User Agent Examples
 --------------------------
+### IP/User Agent Examples
 1. One template log entry with IP 123.4.5.6, Chromebook Mac UA is expanded to one or more generated entries with IPs in the range 123.4.5.0/24 (bc it's global) + Chromebook Mac UA
 
 2. One template log entry with IP 10.1.2.3, Linux, curl UA is expanded to one or more generated entries with IP 10.1.2.3 (bc it's private) + the same Linux curl UA
 
 3. Googlebot stays Googlebot: same UA, IPs
 
-### Time Distributions 
 ----------------------
+### Time Distributions 
 You can specify the overall time distribution you want to appear in the logs, one of:
 
 *Normal*<br>Specifies that a normal distribution of entries should be generated, centered around the midpoint time-wise between your start and end datetimes. This is the default as most real-world web access follows natural wake/sleep cycles.
 
 *Even*<br>Specifies a random (even) distribution be used instead. You may want to use this if you are an international company and no one time zone wake/sleep cycle dominates your site/app usage patterns.
 
+----------------------
 ### How many records does it generate?
 > If you are NOT using session preservation (-p), the total number of entries generated is equal to the -n parameter value TIMES the -r parameter value, spread in the selected distribution across the timeframe specified between the -s and -e parameter start and end datetimes.
 
 > If you ARE using session preservation (-p), the total number of entries generated is equal to the total number in your provided template log file.
 
+----------------------
 ### What does it cost, resource-wise?
 Memory usage is primarily due to the need to cache an entire time distribution period in memory to "keep the shape" of the distribution as we go. Using -n 10 -r 1000000, generating 10M entries in total across 10 files, takes about 4-5GB of memory on my Mac. Streaming takes less since I can free memory as we go. This is an area I'm actively working on improving.
 
@@ -130,8 +132,8 @@ Flan is developed and tested on Python 3.7 (as of July 2019). It's untested on o
 
 Uninstall, then reinstall using the same installation instructions listed above.
 
-### Syntax and Parameters
 -------------------------
+## Syntax and Parameters
 
 ##### INTERACTIVE MODE (uses commandline arguments)
 
@@ -189,8 +191,8 @@ For service mode, use flan.config.json instead of commandline arguments. Each of
 | -y | Replay logging. If specified, enables the replay log. Replay logging parses the template log file on first execution and stores the parsed results in a binary 'flan.replay' file located in the same directory as flan.py. On subsequent execution, Flan will load the already-parsed replay log rather than reparse the template log file, saving lots of time when reusing the same large template log repeatedly. Once created, the replay log is never overwritten or deleted; delete it manually first to recreate it on the next Flan run, if needed. If a replay log exists but -y is not specified, the replay log is ignored (neither read nor overwritten).| Do not use replay logs; parse the template log every time and ignore any existing replay log. |
 | -z,<br>--timezone | Timezone offset in (+/-)HHMM format to append to timestamps in the generated log file(s), or pass '' to specify no timezone. | Your current local/server timezone. |
 
-### Where can I get access.log files to test with?
 --------------------------------------------------
+### Where can I get access.log files to test with?
 Test log files are available in the tests folder.
 
 Here's another resource:
@@ -199,8 +201,8 @@ https://gist.github.com/rm-hull/bd60aed44024e9986e3c
 
 Or, just Google "example access.log files".
 
-### Released Enhancements
 -------------------------
+### Released Enhancements
 v0.0.1<br>
 Including bots not in the template log from a list of bots commonly seen in the wild by frequency commonly seen via the user-agent.json file and appropriate -b and -u parameter settings.
 
@@ -255,8 +257,8 @@ Performance and memory usage enhancements to streaming, time distribution and lo
 v0.0.18<br>
 Service/daemon mode available
 
-### Future Enhancements
 -----------------------
+### Future Enhancements
 Definitely:
 
 1. Integrations: Splunk, QRadar, LogRhythm, SolarWinds, LogStash/ELK, Graylog, LOGalyze, ManageEngine, FluentD, Apache Flume, RabbitMQ, Redis Pub/Sub, Apache Kafka, Apache Pulsar, Apache Nifi are a few off the top of my head.
@@ -278,6 +280,6 @@ Possibly:
 <br>https://en.wikipedia.org/wiki/List_of_probability_distributions
 
 
-### PRs welcome!
+## PRs welcome!
 
 
