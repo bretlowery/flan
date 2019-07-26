@@ -89,7 +89,7 @@ Larger template logs create more accurate output data, but take longer to parse 
 
 I'm not currently supporting preservation of sessions across a time distribution period boundary. That would mean I'd have to keep multiple time distribution periods cached simultaneously, and that just eats memory alive. 
 
-### Installation
+## Instructions
 ----------------
 
 Flan is developed and tested on Python 3.7 (as of July 2019). It's untested on other versions. 
@@ -100,6 +100,8 @@ Flan is developed and tested on Python 3.7 (as of July 2019). It's untested on o
    user-agents<br>
    numpy <br>
    service <br>
+
+### Installation
 
 1. Download and extract all *.py files, *requirements.txt files, and (optionally) user-agents.json to a installation directory of your choice. You don't need the tests folder or its contents if you are not running unit tests. This exercise is left to the reader.
 
@@ -132,7 +134,7 @@ Uninstall, then reinstall using the same installation instructions listed above.
 ### Syntax and Parameters
 -------------------------
 
-#####INTERACTIVE MODE (uses commandline arguments)
+##### INTERACTIVE MODE (uses commandline arguments)
 
 File output:
 
@@ -145,13 +147,13 @@ Streaming output:
 flan -c [-o outputtarget] [--pace] [arguments] templatelogspec
 ```
 
-#####SERVICE/DAEMON MODE (uses flan.config.json)
+##### SERVICE/DAEMON MODE (uses flan.config.json)
 
 ```
 flan [ start | stop | status ]
 ```
 
-#####CONTROLLING FLAN VIA ARGUMENTS AND CONFIGS
+##### CONTROLLING FLAN VIA ARGUMENTS AND CONFIGS
 
 For service mode, use flan.config.json instead of commandline arguments. Each of its entries map one-to-one to one of the arguments below. Quiet (-q), stats (--stats), profile (--profile), and overwrite (-w) are set to fixed defaults in service mode and if set in flan.config.json are ignored. flan.config.json is ignored in interactive mode.
 
