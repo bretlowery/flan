@@ -20,6 +20,7 @@ import collections
 import operator
 import itertools
 from service import Service
+import resource
 
 __VERSION__ = "0.0.18"
 
@@ -190,10 +191,26 @@ IPMAP2 = {}
 REPLAY_LOG_FILE = os.path.join(os.path.dirname(__file__), 'flan.replay')
 SERVICE_CONFIG_FILE = os.path.join(os.path.dirname(__file__), 'flan.config.json')
 
+
 def error(msg):
     msg = "ERROR: %s" % msg.strip()
     print(msg, file=sys.stderr)
     exit(1)
+
+
+RSS_MEMORY_BASE = 0
+MAX_RSS_MEMORY_USED = 0
+
+
+def profile_memory(meta):
+    global RSS_MEMORY_BASE, MAX_RSS_MEMORY_USED
+    if meta.profile:
+        if RSS_MEMORY_BASE == 0:
+            RSS_MEMORY_BASE = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        else:
+            curr_mem_used = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss - RSS_MEMORY_BASE
+            if curr_mem_used > MAX_RSS_MEMORY_USED:
+                MAX_RSS_MEMORY_USED = curr_mem_used
 
 
 def uatostruct(uastring):
@@ -381,8 +398,10 @@ class MetaManager:
         # verify inputs
         #
 
-        #servicemode
+        # servicemode
         self.servicemode = servicemode
+        # --profile
+        self.profile = options.profile
         # -q
         self.quiet = options.quiet
         # -a
@@ -890,6 +909,8 @@ class DataManager:
                     if self.totread % 100 == 0:
                         print('Parsed %d entries...' % self.totread)
 
+                profile_memory(meta)
+
         if self.totok == 0:
             error("no usable entries found in the log file provided based on passed parameter filters.")
 
@@ -934,7 +955,6 @@ class DataManager:
             replace("$body_bytes_sent", entry["body_bytes_sent"]). \
             replace("$http_referer", entry["http_referer"])
 
-
 def make_distribution(meta):
 
     def _getdtkey(offset):
@@ -956,6 +976,7 @@ def make_distribution(meta):
             d[key] = d[key] + 1 \
                 if key in d.keys() \
                 else 1
+            profile_memory(meta)
     else:
         # create a set of randomly-distributed time slots between the start and end datetimes
         # uniqueify the generated distribution at the per-second level
@@ -966,6 +987,7 @@ def make_distribution(meta):
             d[key] = d[key] + 1 \
                 if key in d.keys() \
                 else 1
+            profile_memory(meta)
     # sort the generated time distribution in chronological order ascending using fast itemgetter-based sort
     td = collections.OrderedDict(sorted(d.items(), key=operator.itemgetter(0)))
     return tot2write, td
@@ -983,6 +1005,7 @@ def make_flan(options, servicemode=False):
 
     # verify parameters, and load the template log file or replay log
     meta = MetaManager(options, servicemode)
+    profile_memory(meta)
     # parse and store the template log file data line by line
     data = DataManager(meta)
     # if preserving sessions, the number of generated entries must = the number in the template log
@@ -1078,6 +1101,7 @@ def make_flan(options, servicemode=False):
             #
             # post emit
             #
+            profile_memory(meta)
             if not meta.quiet:
                 if totthisfile % 100 == 0:
                     print('Wrote %d entries...' % totthisfile)
@@ -1110,6 +1134,8 @@ def make_flan(options, servicemode=False):
     if not meta.quiet:
         print('Total of %d record(s) written successfully from %d parsed template entries.' % (totwritten, data.totok))
         print('Log generation completed.')
+
+    profile_memory(meta)
     meta.emitmeta()
 
     return
@@ -1323,11 +1349,10 @@ def interactiveMode():
 
     options = argz.parse_args()
 
+    make_flan(options)
     if options.profile:
-        import cProfile
-        cProfile.runctx('make_flan(options)', globals(), locals())
-    else:
-        make_flan(options)
+        x = 1024.0 if sys.platform == "darwin" else 1.0 if sys.platform == "linux" else 1.0
+        print("\n\r%s MB maximum (peak) memory used" % str(round(MAX_RSS_MEMORY_USED / 1024.0 / x, 3)))
 
 
 class FlanService(Service):
