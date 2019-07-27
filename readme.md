@@ -283,7 +283,4 @@ Possibly:
 <br/>https://en.wikipedia.org/wiki/Traffic_generation_model
 <br>https://en.wikipedia.org/wiki/List_of_probability_distributions
 
-
 ## PRs welcome!
-
-
