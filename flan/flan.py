@@ -1010,7 +1010,7 @@ def make_flan(options, servicemode=False):
     data = DataManager(meta)
     # if preserving sessions, the number of generated entries must = the number in the template log
     if meta.preserve_sessions:
-        meta.files = 1 if meta.streaming else meta.files
+        meta.files = 1 if meta.files < 1 else meta.files
         meta.records = int(data.totok * 1.0 / meta.files)
         if not meta.quiet:
             print("NOTE: -p (preserve sessions) specified. Matching template log, setting -r (the number of records per file) = %d * %d files = "
