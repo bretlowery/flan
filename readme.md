@@ -1,6 +1,6 @@
 # FLAN: Fake (Access) Logs for Apache or NGINX
 
-FLAN is a Python 3.x utility that creates one or more fake Apache or NGINX access.log files with fake entries based on the entries from a real-world access.log file that you provide it. The name itself is actually fake: it can generate logs for anything that consumes NCSA Combined Log Format, but FLNCSACLF seems like the name of a Wonka-brand prescription nasal spray rather than a fungible Github project acronym, so.
+FLAN is a Python 3.x utility that creates one or more fake Apache or NGINX access.log files with fake entries based on the entries from a real-world access.log file that you provide it. The name itself is actually fake: it can generate logs for anything that consumes NCSA Combined Log Format, but FLNCSACLF seems like the name of a Wonka-brand prescription nasal spray rather than a properly ascetic Github project acronym, so.
 
 ----------------------
 ### Feature Highlights
@@ -31,7 +31,7 @@ and some other considerations.
 
 I looked for solutions but they lacked. 90% generated random data, including invalid IP addresses, or user agents that didn't match a real-world distribution of user-agents, which was important for my immediate needs (fraud research). The other 10% couldn't handle my special use cases, like preservation of partner/SEO bots and private network IPs. So, I created FLAN.
 
-FLAN generates up to 1K test access.log files of up to 1M records each, per run. On my Mac, it can generate 200K records in about 30 seconds in verbose mode with basic settings (enabling session preservation with -p adds about 5x to the runtime) so it's way way fast on any ol' EC2 or GCE server including the free tier stuff.
+FLAN generates up to 1K test access.log files of up to 1M records each, per run. On my Mac, it can generate 200K records in about 30 seconds in verbose mode with basic settings so it's way way fast on any ol' EC2 or GCE server including the free tier stuff.
 
 ---------------------------------------------------------------
 ### Flan generates log files semantically similar to production
