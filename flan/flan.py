@@ -22,7 +22,7 @@ import itertools
 from service import Service
 import resource
 
-__VERSION__ = "0.0.18"
+__VERSION__ = "0.0.20"
 
 R_MAX = 100000000
 R_DEFAULT_NOSTREAMING = 10000

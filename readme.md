@@ -261,6 +261,12 @@ Performance and memory usage enhancements to streaming, time distribution and lo
 v0.0.18<br>
 Service/daemon mode available
 
+v0.0.19<br>
+Div by zero bug fix when using -p
+
+v0.0.20<br>
+Stable release
+
 -----------------------
 ### Future Enhancements
 Definitely:
