@@ -12,7 +12,7 @@ Div by zero bug fix when using -p
 Service/daemon mode available
 
 
-## v0.0.17 "The Man From Ipanema
+## v0.0.17 "The Man From Ipanema"
 Performance and memory usage enhancements to streaming, time distribution and log file generation
 
 
@@ -32,7 +32,7 @@ Renamed --stats to --meta; added meta info; emit meta in JSON format if both -o 
 More unit tests
 
 
-## v0.0.12 "Flower Hour"
+## v0.0.12 "Flower Hour (BOOTLEG!)"
 Bug fixes and initial unit tests
 
 
@@ -76,6 +76,6 @@ Full session preservation support via the -p and -m parameters (see below).
 Partial preservation and/or generation of user "sessions" (in the context of an access.log, really just the clustering of repeated, order-significant IP/UA combos following a semantically sound series of request paths) in the generated logs via the -m onetoone setting.
 
 
-## v0.0.1 "Jaco"
+## v0.0.1 "Jaco (BOOTLEG!)"
 Including bots not in the template log from a list of bots commonly seen in the wild by frequency commonly seen via the user-agent.json file and appropriate -b and -u parameter settings.
 
