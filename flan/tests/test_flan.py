@@ -3,10 +3,11 @@ from flan.tests.utils import Utils
 from unittest import TestCase, skip
 import inspect
 from dateutil import parser as dtparser
+import collections
 
 testpath = os.path.dirname(__file__)
 testtemplate1 = os.path.join(testpath, '99good1bad.test.access.log')
-testout = os.path.join(testpath, 'testresults')
+testout = os.path.join(testpath, 'flanunittesttemp')
 testreplay = os.path.join(testpath, '../flan.replay')
 utils = Utils()
 
@@ -154,12 +155,17 @@ class FlanTestCases(TestCase):
             ValueError("invalid status passed to _chk")
 
     def chk4datacondition(self, parameters, element, operator, value, startonline=None, endonline=None, scope="every", status='pass'):
+
+        def _update(_matches, _dikt):
+            _matches = collections.OrderedDict() if _matches is None else _matches
+            _matches[i] = _dikt
+            return _matches
+
         operator = operator.lower()
         result, resultslist = utils.execmd(parameters, returnstdout=True)
         self.assertEqual(result.returncode, 0)
         i = 0
-        max = len(resultslist)
-        rtn = False
+        matches = None
         for line in resultslist:
             i += 1
             if startonline:
@@ -168,21 +174,19 @@ class FlanTestCases(TestCase):
             if endonline:
                 if i > endonline:
                     break
-            chk = utils.parse_logline(line)
-            if scope == "any":
+            dikt = utils.parse_logline(line)
+            if scope in "any":
                 try:
-                    self._chk(status, chk, element, operator, value)
-                    rtn = True
+                    self._chk(status, dikt, element, operator, value)
+                    matches = _update(matches, dikt)
                 except AssertionError:
                     pass
-                if rtn:
-                    break
             elif scope == "every":
-                self._chk(status, chk, element, operator, value)
-                rtn = True
+                self._chk(status, dikt, element, operator, value)
+                matches = _update(matches, dikt)
             else:
                 ValueError("invalid scope passed to chk4datacondition")
-        return rtn
+        return matches
 
     #
     # TEST CASES
@@ -359,18 +363,18 @@ class FlanTestCases(TestCase):
         Test -s and -e lower bound inclusive boundary condition
         """
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
-        anypass = self.chk4datacondition('-s "2019-01-01 00:00:00" -e "2019-01-02 23:59:59" -o stdout %s' % testtemplate1,
+        passed = self.chk4datacondition('-s "2019-01-01 00:00:00" -e "2019-01-02 23:59:59" -o stdout %s' % testtemplate1,
                                "_ts", "after", "2019-01-02 22:00:00", startonline=None, endonline=None, status='pass', scope='any')
-        self.assertTrue(anypass)
+        self.assertTrue(passed is not None)
 
     def test_1120_date_range_6(self):
         """
         Test -s and -e upper bound inclusive boundary condition
         """
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
-        anypass = self.chk4datacondition('-s "2019-01-01 00:00:00" -e "2019-01-02 23:59:59" -o stdout %s' % testtemplate1,
+        passed = self.chk4datacondition('-s "2019-01-01 00:00:00" -e "2019-01-02 23:59:59" -o stdout %s' % testtemplate1,
                                "_ts", "before", '2019-01-01 02:00:00', startonline=None, endonline=None, status='pass', scope='any')
-        self.assertTrue(anypass)
+        self.assertTrue(passed is not None)
 
     def test_1130_ipfilter(self):
         """
@@ -420,3 +424,53 @@ class FlanTestCases(TestCase):
         self.chk4countequals('-r 5 -l CR -o stdout %s' % testtemplate1, countexpected=5, linedelimiter="\r")
         self.chk4countequals('-r 7 -l LF -o stdout %s' % testtemplate1, countexpected=7, linedelimiter="\n")
 
+    def test_1200_session_preservation(self):
+        """
+        Session preservation test
+        """
+        utils.newtest(inspect.currentframe().f_code.co_name.upper())
+        matches = self.chk4datacondition('-p -o stdout %s' % testtemplate1,
+                               "remote_addr", "like", "^75.24.111.(?<!\d)(?:[1-9]?\d|1\d\d|2(?:[0-4]\d|5[0-5]))(?!\d)",
+                               startonline=None, endonline=None, status='pass', scope='any')
+        rows = [k for k, v in matches.items()]
+        lines = [v for k, v in matches.items()]
+        self.assertTrue(rows == [4, 8, 14])
+        self.assertTrue(line['remote_addr'] == lines[0]['remote_addr'] for line in lines)
+        self.assertTrue(line['http_user_agent'] == lines[0]['http_user_agent'] for line in lines)
+        self.assertTrue(line['remote_user'] == lines[0]['remote_user'] for line in lines)
+        self.assertTrue(lines[0]['request'] == 'POST /a.html HTTP/1.0')
+        self.assertTrue(lines[1]['request'] == 'POST /b.html HTTP/1.0')
+        self.assertTrue(lines[2]['request'] == 'POST /c.html HTTP/1.0')
+
+    def test_1210_ipmapping(self):
+        """
+        IP mapping test
+        """
+        utils.newtest(inspect.currentframe().f_code.co_name.upper())
+        matches = self.chk4datacondition('-o stdout -m onetoone %s' % testtemplate1,
+                               "remote_addr", "like", "^75.24.111.(?<!\d)(?:[1-9]?\d|1\d\d|2(?:[0-4]\d|5[0-5]))(?!\d)",
+                               startonline=None, endonline=None, status='pass', scope='any')
+        lines = [v for k, v in matches.items()]
+        ips = [line['remote_addr'] for line in lines]
+        distinctips = collections.Counter(ips).keys()
+        self.assertTrue(len(distinctips) == 1)
+        self.assertTrue(line['remote_addr'] == lines[0]['remote_addr'] for line in lines)
+        self.assertTrue(line['request'] in ['POST /a.html HTTP/1.0', 'POST /b.html HTTP/1.0', 'POST /c.html HTTP/1.0'] for line in lines)
+        matches = self.chk4datacondition('-o stdout -m onetomany %s' % testtemplate1,
+                               "remote_addr", "like", "^75.24.111.(?<!\d)(?:[1-9]?\d|1\d\d|2(?:[0-4]\d|5[0-5]))(?!\d)",
+                               startonline=None, endonline=None, status='pass', scope='any')
+        lines = [v for k, v in matches.items()]
+        ips = [line['remote_addr'] for line in lines]
+        distinctips = collections.Counter(ips).keys()
+        self.assertTrue(len(distinctips) > 1)
+        self.assertTrue(line['request'] in ['POST /a.html HTTP/1.0', 'POST /b.html HTTP/1.0', 'POST /c.html HTTP/1.0'] for line in lines)
+
+    #
+    # tear down
+    #
+
+    @classmethod
+    def tearDownClass(cls):
+        utils.newtest(inspect.currentframe().f_code.co_name.upper())
+        if os.path.exists(testout):
+            utils.wipe(testout)
