@@ -442,7 +442,7 @@ class FlanTestCases(TestCase):
         self.assertTrue(lines[1]['request'] == 'POST /b.html HTTP/1.0')
         self.assertTrue(lines[2]['request'] == 'POST /c.html HTTP/1.0')
 
-    def test_1210_ipmapping(self):
+    def test_1210_ipmapping_onetoone(self):
         """
         IP mapping test
         """
@@ -456,10 +456,17 @@ class FlanTestCases(TestCase):
         self.assertTrue(len(distinctips) == 1)
         self.assertTrue(line['remote_addr'] == lines[0]['remote_addr'] for line in lines)
         self.assertTrue(line['request'] in ['POST /a.html HTTP/1.0', 'POST /b.html HTTP/1.0', 'POST /c.html HTTP/1.0'] for line in lines)
+
+    def test_1220_ipmapping_onetomany(self):
+        """
+        IP mapping test
+        """
+        utils.newtest(inspect.currentframe().f_code.co_name.upper())
         matches = self.chk4datacondition('-o stdout -m onetomany %s' % testtemplate1,
-                               "remote_addr", "like", "^75.24.111.(?<!\d)(?:[1-9]?\d|1\d\d|2(?:[0-4]\d|5[0-5]))(?!\d)",
-                               startonline=None, endonline=None, status='pass', scope='any')
+                                         "remote_addr", "like", "^75.24.111.(?<!\d)(?:[1-9]?\d|1\d\d|2(?:[0-4]\d|5[0-5]))(?!\d)",
+                                         startonline=None, endonline=None, status='pass', scope='any')
         lines = [v for k, v in matches.items()]
+
         ips = [line['remote_addr'] for line in lines]
         distinctips = collections.Counter(ips).keys()
         self.assertTrue(len(distinctips) > 1)

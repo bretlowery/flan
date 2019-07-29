@@ -19,8 +19,10 @@ from time import sleep
 import collections
 import operator
 import itertools
-from service import Service
+from service import Service, find_syslog
 import resource
+import logging
+from logging.handlers import SysLogHandler
 
 __VERSION__ = "0.0.20"
 
@@ -190,11 +192,15 @@ IPMAP = {}
 IPMAP2 = {}
 REPLAY_LOG_FILE = os.path.join(os.path.dirname(__file__), 'flan.replay')
 SERVICE_CONFIG_FILE = os.path.join(os.path.dirname(__file__), 'flan.config.json')
-
+LOGGER = None
 
 def error(msg):
+    global LOGGER
     msg = "ERROR: %s" % msg.strip()
-    print(msg, file=sys.stderr)
+    if LOGGER:
+        LOGGER.error(msg)
+    else:
+        print(msg, file=sys.stderr)
     exit(1)
 
 
@@ -1358,7 +1364,18 @@ def interactiveMode():
 
 class FlanService(Service):
 
+    def __init__(self, *args, **kwargs):
+        global LOGGER
+        super(FlanService, self).__init__(*args, **kwargs)
+        self.logger.addHandler(SysLogHandler(address=find_syslog(),
+                               facility=SysLogHandler.LOG_DAEMON))
+        self.logger.setLevel(logging.INFO)
+        LOGGER = self.logger
+
     def run(self):
+        # wait 30s when running on a Mac to allow opportunity to attach to the debugger and debug the service
+        sleep(30) if sys.platform == "darwin" else sleep(0)
+        LOGGER.info("Starting Flan/%s" % __VERSION__)
         # set up defaults when running as a service
         from argparse import Namespace
         options = Namespace(
@@ -1407,10 +1424,12 @@ class FlanService(Service):
                 try:
                     options.vars()[setting] = configjson[setting]
                 except:
-                    error('unrecognized setting "%s" in flan.config.json' % setting)
+                    error('unrecognized setting "%s" in %s' % (setting, SERVICE_CONFIG_FILE))
                     exit(1)
+        LOGGER.info("%s loaded successfully" % SERVICE_CONFIG_FILE)
         # make flan
         make_flan(options, servicemode=True)
+        LOGGER.info("Flan/%s finished" % __VERSION__)
 
     def show_status(self):
         return
@@ -1427,8 +1446,18 @@ def main():
         service = FlanService(service_name, pid_dir='/tmp')
         if cmd == "start":
             service.start()
+            sleep(2)
+            if service.is_running():
+                print("%s is running." % service_name)
+            else:
+                print("WARNING, %s is NOT running." % service_name)
         elif cmd == "stop":
             service.stop()
+            sleep(2)
+            if service.is_running():
+                print("WARNING, %s is STILL running." % service_name)
+            else:
+                print("%s is not running." % service_name)
         elif cmd == "status":
             if service.is_running():
                 print("%s is running." % service_name)
