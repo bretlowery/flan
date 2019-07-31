@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## v0.0.22 "Blue Break Beats Vol. 4"
+Splunk and Kafka integrations
+
 ## v0.0.21 "Quartet"
 Kafka integration ALPHA
 Support JSON output

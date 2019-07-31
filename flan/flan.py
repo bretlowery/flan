@@ -24,7 +24,7 @@ import resource
 import logging
 from logging.handlers import SysLogHandler
 
-__VERSION__ = "0.0.21"
+__VERSION__ = "0.0.22"
 
 R_MAX = 100000000
 R_DEFAULT_NOSTREAMING = 10000
