@@ -1,7 +1,7 @@
 # CHANGELOG
 
 ## v0.0.21 "Quartet"
-Kafka integration APLHA
+Kafka integration ALPHA
 Support JSON output
 Replace -f with --inputformat & --outputformat
 
