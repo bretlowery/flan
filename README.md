@@ -106,6 +106,8 @@ Flan is developed and tested on Python 3.7 (as of July 2019). It's untested on o
    user-agents<br>
    numpy <br>
    service <br>
+   splunk-sdk (only if using Splunk integration)<br>
+   confluent_kafka (only if using Kafka integration)<br>
 
 ### Installation
 
@@ -113,7 +115,7 @@ Flan is developed and tested on Python 3.7 (as of July 2019). It's untested on o
 
 2. (Optional) Set up a Python 3.7 virtualenv and activate it. This exercise is left to the reader.
 
-3. Install dependency requirements:
+3. Install dependency requirements. You may optionally first comment out any integration dependencies you don't need:
 
    `pip install -r requirements.txt`
    
