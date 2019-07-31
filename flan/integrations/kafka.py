@@ -28,9 +28,11 @@ class Kafka:
         def _callback(self, err, msg):
             if err is not None:
                 if self.producer.loglevel == "error":
-                    error('Message delivery failed: {}'.format(err))
+                    error('Flan-Kafka delivery failed: {}'.format(err))
+                if self.producer.haltonerror:
+                    exit(1)
             elif self.producer.loglevel == "info":
-                info('Message delivered to {} [{}]'.format(msg.topic(), msg.partition()))
+                info('Flan->Kafka {} [{}]'.format(msg.topic(), msg.partition()))
 
         def write(self, data):
             self.producer.poll(0)
@@ -39,9 +41,10 @@ class Kafka:
 
     def __init__(self, config):
         self.config = config
+        self.loglevel = "info" if istruthy(config["loginfo"]) else "errors" if istruthy(config["logerrors"]) else "none"
+        self.haltonerror = istruthy(config["haltonerror"])
         self.producer = Producer(config["producer"])
         self.writer = self.Writer(self.producer)
-        self.loglevel = "info" if istruthy(config["loginfo"]) else "errors" if istruthy(config["logerrors"]) else "none"
 
     @property
     def target(self):

@@ -6,8 +6,11 @@
         "loginfo": "False",
         "logerrors": "True",
         "haltonerror": "True",
-        "bootstrap.servers": "mybroker1,mybroker2,...",
-        "topic": "mytopic"
+        "host": "splunkhostname",
+        "port": "splunkportnumber",
+        "username": "username",
+        "password": "password",
+        "index": "indexname"
       }
     ]
   }

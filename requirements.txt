@@ -4,7 +4,11 @@ user-agents>=2.0
 numpy>=1.16.4.0
 service>=0.6.0
 #
+### splunk sdk
+splunk-sdk>=1.6.6
+#
+#
 ### kafka adapter client
-# confluent_kafka>=1.1.0
+confluent_kafka>=1.1.0
 ###
 #
