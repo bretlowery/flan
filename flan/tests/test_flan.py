@@ -472,6 +472,7 @@ class FlanTestCases(TestCase):
         self.assertTrue(len(distinctips) > 1)
         self.assertTrue(line['request'] in ['POST /a.html HTTP/1.0', 'POST /b.html HTTP/1.0', 'POST /c.html HTTP/1.0'] for line in lines)
 
+
     #
     # tear down
     #

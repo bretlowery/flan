@@ -24,7 +24,7 @@ import resource
 import logging
 from logging.handlers import SysLogHandler
 
-__VERSION__ = "0.0.20"
+__VERSION__ = "0.0.21"
 
 R_MAX = 100000000
 R_DEFAULT_NOSTREAMING = 10000
@@ -46,6 +46,8 @@ MONTHS = {
 }
 
 DEFAULT_FORMAT = '$remote_addr - $remote_user [$time_local] \"$request\" $status $body_bytes_sent \"$http_referer\" \"$http_user_agent\"'
+JSON_FORMAT = '{"remote_addr":"$remote_addr","remote_user":"$remote_user","time_local":"$time_local","request":"$request","status":$status,' \
+              '"body_bytes_sent":$body_bytes_sent,"http_referer":"$http_referer","http_user_agent":"$http_user_agent"}'
 
 SUPPORTED_FIELDS = '[' \
                          '{' \
@@ -191,8 +193,17 @@ UA_FREQUENCIES = \
 IPMAP = {}
 IPMAP2 = {}
 REPLAY_LOG_FILE = os.path.join(os.path.dirname(__file__), 'flan.replay')
-SERVICE_CONFIG_FILE = os.path.join(os.path.dirname(__file__), 'flan.config.json')
+SERVICE_CONFIG_FILE = os.path.join(os.path.dirname(__file__), 'config/flan.config.json')
+INTEGRATION_CONFIG_FILE = ""
 LOGGER = None
+
+def info(msg):
+    global LOGGER
+    msg = msg.strip()
+    if LOGGER:
+        LOGGER.info(msg)
+    else:
+        print(msg, file=sys.stdout)
 
 def error(msg):
     global LOGGER
@@ -241,6 +252,47 @@ def uatostructstr(uastring):
                str(uap.is_bot), str(uap.is_email_client), str(uap.is_mobile),
                str(uap.is_pc), str(uap.is_tablet), str(uap.is_touch_capable)
            )
+
+
+def istruthy(string):
+    return {
+        't': True,
+        'true': True,
+        'y': True,
+        'yes': True,
+        '1': True
+    }.get(string.strip().lower(), False)
+
+
+def proxy(target):
+    target = target.strip().lower()
+    integrationconfig = None
+    if target != "stdout":
+        try:
+            with open(INTEGRATION_CONFIG_FILE) as config_file:
+                configjson = json.load(config_file)
+        except:
+            error('%s was not found, is not readable, has insufficient read permissions, or is not a valid JSON file' % INTEGRATION_CONFIG_FILE)
+            exit(1)
+        try:
+            integrationconfig = configjson[target]
+        except:
+            error('A %s integration was not found within %s' % (target, INTEGRATION_CONFIG_FILE))
+            exit(1)
+        try:
+            enabled = istruthy(integrationconfig["enabled"])
+        except:
+            enabled = False
+            pass
+        if not enabled:
+            error('%s integration is not enabled in %s' % (target, INTEGRATION_CONFIG_FILE))
+            exit(1)
+    import importlib
+    # Load "flan.integrations.kafka.Kafka", "flan.integrations.pulsar.Pulsar", etc.
+    IntegrationClass = getattr(importlib.import_module("integrations.%s" % target), target.capitalize())
+    # Instantiate the class (pass arguments to the constructor, if needed)
+    proxy = IntegrationClass(integrationconfig)
+    return proxy
 
 
 class MetaManager:
@@ -375,6 +427,7 @@ class MetaManager:
         return
 
     def __init__(self, options, servicemode=False):
+        global INTEGRATION_CONFIG_FILE
 
         if options.streamtarget != "none":
             options.quiet = True
@@ -421,11 +474,13 @@ class MetaManager:
         # --nouatag
         self.excludeuatag = options.excludeuatag
         # -o
-        self.streamtarget = self._onein(options.streamtarget, ["none", "stdout"], "none")
+        self.streamtarget = self._onein(options.streamtarget, ["none", "stdout", "kafka"], "none")
         if self.streaming and not self.streamtarget:
             error("-o must specify a valid supported streaming target choice (for example, 'stdout') if -c is also specified.")
         if self.servicemode and self.streaming and self.streamtarget == "stdout":
             error("stdout streaming is not supported in service mode.")
+        if self.streaming and self.streamtarget not in ["none", "stdout"]:
+            INTEGRATION_CONFIG_FILE = os.path.join(os.path.dirname(__file__), 'config/flan.%s.json' % self.streamtarget)
         # -y
         self.replay = options.replay
         # -k
@@ -542,10 +597,6 @@ class MetaManager:
         # 2 = normal
         self.disttype = self._oneof(options.distribution, {"normal": 2, "random": 1}, 1)
 
-        # -f
-        assert (len(options.format) > 0)
-        self.format = options.format
-
         # -l
         self.delimiter = self._oneof(options.delimiter,
                                      {
@@ -564,6 +615,15 @@ class MetaManager:
                                          "crlf": "\r\n"
                                      },
                                      "\r\n")
+
+        # --inputformat, --outputformat
+        self.inputformat = options.inputformat.lower()
+        if options.outputformat:
+            if options.outputformat.strip() == "json":
+                self.outputformat = JSON_FORMAT
+                self.delimiter = ",\r\n"
+            else:
+                self.outputformat = options.outputformat.lower()
 
         # -m
         if self.preserve_sessions:
@@ -613,15 +673,15 @@ class MetaManager:
         # -q
         if not options.quiet:
             if options.abort:
-                print("NOTE: -a specified; will halt on the first unparseable log entry found, if any.")
+                info("NOTE: -a specified; will halt on the first unparseable log entry found, if any.")
             else:
-                print("NOTE: -a not specified; unparseable log entries will be skipped.")
+                info("NOTE: -a not specified; unparseable log entries will be skipped.")
 
         if not options.overwrite and not options.streamtarget:
             if self.output_exists():
                 error("one or more target file(s) exist, and --overwrite was not specified.")
         if not options.quiet and not options.replay:
-            print("%d lines read from %s." % (len(self.contents), options.templatelogfiles.strip()))
+            info("%d lines read from %s." % (len(self.contents), options.templatelogfiles.strip()))
 
         return
 
@@ -714,10 +774,10 @@ class DataManager:
         try:
             reexpr = ''.join(
                     '(?P<%s>%s)' % (g, patterns.get(g, '.*?')) if g else re.escape(c)
-                    for g, c in re.findall(r'\$(\w+)|(.)', meta.format))
+                    for g, c in re.findall(r'\$(\w+)|(.)', meta.inputformat))
             return re.compile(reexpr)
         except:
-            error("incorrect, incomplete, or unsupported Format (-f) value provided.")
+            error("incorrect, incomplete, or unsupported input format (--inputformat) value provided.")
 
     def _parse_logline(self, line, meta):
         m = None
@@ -732,7 +792,7 @@ class DataManager:
             if meta.abort:
                 error("Line %d is incorrectly formatted." % self.totread)
             if not meta.quiet:
-                print("Skipping unparseable line %d..." % self.totread)
+                info("Skipping unparseable line %d..." % self.totread)
 
         if meta.customregex:
             m = None
@@ -844,7 +904,7 @@ class DataManager:
                 self.totok = len(self.parsed)
                 self.totread = self.totok
                 if not meta.quiet:
-                    print('%d preparsed entries loaded from replay log.' % self.totread)
+                    info('%d preparsed entries loaded from replay log.' % self.totread)
 
         if not replaying:
 
@@ -868,11 +928,11 @@ class DataManager:
                             parsed_line["_isbot"] = True
                         else:
                             if not meta.quiet:
-                                print('Skipping bot [excluded by -b/-u settings] found on line %d...' % self.totread)
+                                info('Skipping bot [excluded by -b/-u settings] found on line %d...' % self.totread)
                             continue
                     elif meta.uafilter == "bots":
                         if not meta.quiet:
-                            print('Skipping non-bot [excluded by -u setting] found on line %d...' % self.totread)
+                            info('Skipping non-bot [excluded by -u setting] found on line %d...' % self.totread)
                         continue
                     else:
                         parsed_line["_isbot"] = False
@@ -913,7 +973,7 @@ class DataManager:
 
                 if not meta.quiet:
                     if self.totread % 100 == 0:
-                        print('Parsed %d entries...' % self.totread)
+                        info('Parsed %d entries...' % self.totread)
 
                 profile_memory(meta)
 
@@ -950,8 +1010,8 @@ class DataManager:
         if meta.meta:
             delta = timestamp - meta.start_dt
             meta.meta[delta.days + 1][timestamp.hour] += 1
-        # return the log string
-        return meta.format. \
+        # return the log entry
+        return meta.outputformat. \
             replace("$time_local", ts). \
             replace("$remote_addr", ip). \
             replace("$http_user_agent", ua). \
@@ -960,6 +1020,7 @@ class DataManager:
             replace("$status", entry["status"]). \
             replace("$body_bytes_sent", entry["body_bytes_sent"]). \
             replace("$http_referer", entry["http_referer"])
+
 
 def make_distribution(meta):
 
@@ -1003,45 +1064,46 @@ def make_flan(options, servicemode=False):
 
     def _next(td):
         try:
-            _next = next(itertools.islice(td.items(), 1))
+            _nxt = next(itertools.islice(td.items(), 1))
         except StopIteration:
-            _next = None
+            _nxt = None
             pass
-        return _next
+        return _nxt
 
     # verify parameters, and load the template log file or replay log
     meta = MetaManager(options, servicemode)
     profile_memory(meta)
+
     # parse and store the template log file data line by line
     data = DataManager(meta)
+
     # if preserving sessions, the number of generated entries must = the number in the template log
     if meta.preserve_sessions:
         meta.files = 1 if meta.files < 1 else meta.files
         meta.records = int(data.totok * 1.0 / meta.files)
         if not meta.quiet:
-            print("NOTE: -p (preserve sessions) specified. Matching template log, setting -r (the number of records per file) = %d * %d files = "
+            info("NOTE: -p (preserve sessions) specified. Matching template log, setting -r (the number of records per file) = %d * %d files = "
                   "%d total records will be generated." % (meta.records, meta.files, meta.records * meta.files))
 
-    currentfile = meta.files
-    emit = True
-    uas = None
-    log = None
-    totwritten = 0
     meta.streamtarget = "none" if meta.streamtarget is None else meta.streamtarget
+    currentfile = meta.files
+    uas = None
+    timestamp = None
+    targetproxy = None
 
-    while emit:
+    while True:
         #
         # Build the time slice distribution to attribute fake log entries to
         #
         tot2write, time_distribution = make_distribution(meta)
         #
-        # First time through, populate ua list with frequency-appropriate selection of bots actually seen in the template log
+        # First time through only, populate ua list with frequency-appropriate selection of bots actually seen in the template log
         #
         if not uas:
             uas = UAFactory(meta, data)
         #
         if not meta.quiet and not meta.streaming:
-            print('Parsed and prepped a total of %d entries (%d successfully, %d skipped).' % (data.totread, data.totok, data.totread - data.totok))
+            info('Parsed and prepped a total of %d entries (%d successfully, %d skipped).' % (data.totread, data.totok, data.totread - data.totok))
         #
         # Generate the requested fake logs!
         #
@@ -1049,6 +1111,7 @@ def make_flan(options, servicemode=False):
         totthisfile = 0
         totwritten = 0
         logindex = 0
+        current_delimiter = ""
         timeslot = None
         pace_base = None
         time_base = None
@@ -1058,12 +1121,13 @@ def make_flan(options, servicemode=False):
             # prep to emit
             #
             if not log:
-                if meta.streamtarget != "none" or meta.streaming:
-                    log = sys.stdout if meta.streamtarget == "stdout" else None  # other options tbd
-                else:
+                if meta.streamtarget == "none":
                     log = meta.new_outputfile(currentfile)
                     if not meta.quiet:
-                        print('Beginning write of fake entries to log %s.' % log.name)
+                        info('Beginning write of fake entries to log %s.' % log.name)
+                else:
+                    targetproxy = proxy(meta.streamtarget)
+                    log = targetproxy.target
                 # get 1st entry in the time distribution
                 timeslot = _next(time_distribution)
                 time_base = timeslot[0]
@@ -1071,15 +1135,22 @@ def make_flan(options, servicemode=False):
                 pace_base = datetime.datetime.now()
                 # beginning of template log
                 logindex = 0
+                # if json output, start a json array
+                if options.outputformat == "json":
+                    log.write('[\r\n')
+                current_delimiter = ""
+
+            timestamp = timeslot[0]
+            if timestamp > meta.end_dt:
+                break
+            spots = timeslot[1]
             #
             # emit one entry
             #
-            timestamp = timeslot[0]
-            spots = timeslot[1]
             if meta.gzipindex > 0:
-                log.write(str.encode("%s%s%s%s" % (meta.quotechar, data.generate_entry(timestamp, logindex, meta, uas.uas), meta.quotechar, meta.delimiter)))
+                log.write(str.encode("%s%s%s%s" % (current_delimiter, meta.quotechar, data.generate_entry(timestamp, logindex, meta, uas.uas), meta.quotechar)))
             else:
-                log.write("%s%s%s%s" % (meta.quotechar, data.generate_entry(timestamp, logindex, meta, uas.uas), meta.quotechar, meta.delimiter))
+                log.write("%s%s%s%s" % (current_delimiter, meta.quotechar, data.generate_entry(timestamp, logindex, meta, uas.uas), meta.quotechar))
             #
             # increment counters, logindex, and available timeslot if needed
             #
@@ -1094,6 +1165,7 @@ def make_flan(options, servicemode=False):
             else:
                 # one spot filled; decrement the number of available spots we have with this timestamp
                 timeslot = (timestamp, spots - 1)
+            current_delimiter = meta.delimiter
             #
             # pacing
             #
@@ -1102,7 +1174,7 @@ def make_flan(options, servicemode=False):
                 log_offset = (timestamp - time_base).total_seconds()
                 while log_offset > clock_offset:
                     #  I'm ahead of myself, hold yer horses hoss
-                    sleep(0.1)
+                    sleep(0.05)
                     clock_offset = (datetime.datetime.now() - pace_base).total_seconds()
                     log_offset = (timestamp - time_base).total_seconds()
             #
@@ -1111,36 +1183,48 @@ def make_flan(options, servicemode=False):
             profile_memory(meta)
             if not meta.quiet:
                 if totthisfile % 100 == 0:
-                    print('Wrote %d entries...' % totthisfile)
+                    info('Wrote %d entries...' % totthisfile)
             if meta.streamtarget == "none" and not meta.streaming:
                 if totthisfile == meta.records:
+                    if options.outputformat == "json":
+                        log.write('\r\n]')
                     if not meta.quiet:
-                        print('Log %s completed.' % log.name)
-                    log.close()
+                        info('Log %s completed.' % log.name)
+                    if targetproxy:
+                        targetproxy.close()
                     log = None
                     currentfile -= 1
                     meta.gzipindex -= 1 if meta.gzipindex > 0 else 0
                     totthisfile = 0
 
+        # are we done?
         if not meta.streaming:
             break
+        if timestamp:
+            if timestamp > meta.end_dt:
+                break
 
         # streaming loop
         # adjust dates forward
+        # reset log
         meta.start_dt = meta.end_dt
         meta.end_dt = meta.end_dt + timedelta(seconds=meta.period)
         log = None
         continue
 
-    if log and meta.streamtarget == "none":
-        if not log.closed:
-            log.close()
-        if not meta.quiet:
-            print('Log %s completed.' % log.name)
+    if log:
+        if options.outputformat == "json":
+            log.write('\r\n]')
+        if targetproxy:
+            if not targetproxy.closed:
+                targetproxy.close()
+        if meta.streamtarget == "none":
+            if not meta.quiet:
+                info('Log %s completed.' % log.name)
 
     if not meta.quiet:
-        print('Total of %d record(s) written successfully from %d parsed template entries.' % (totwritten, data.totok))
-        print('Log generation completed.')
+        info('Total of %d record(s) written successfully from %d parsed template entries.' % (totwritten, data.totok))
+        info('Log generation completed.')
 
     profile_memory(meta)
     meta.emitmeta()
@@ -1159,7 +1243,6 @@ def interactiveMode():
     argz.add_argument("-a",
                       action="store_true",
                       dest="abort",
-                      default=False,
                       help="If specified, abort on the first (meaning, 'any and every') non-parsable log line found. "
                            "If not specified (the default), skip all non-parsable log lines but process the rest of the entries.")
     argz.add_argument("-b", "--botfilter",
@@ -1172,7 +1255,6 @@ def interactiveMode():
                            "unseen=ONLY include bots found in the user-agents.json in the fake log entries. Default=seen.")
     argz.add_argument("-c", "--continuous",
                       action="store_true",
-                      default=False,
                       dest="streaming",
                       help="TBD"
                       )
@@ -1187,12 +1269,6 @@ def interactiveMode():
                       action="store",
                       dest="end_dt",
                       help='Latest datetime to provide in the generated log files. Defaults to midnight tomorrow.')
-    argz.add_argument("-f", "--format",
-                      action="store",
-                      dest="format",
-                      default=DEFAULT_FORMAT,
-                      help='Format of the long entry line. Default is: \'$remote_addr - $remote_user [$time_local] \"$request\" '
-                           '$status $body_bytes_sent \"$http_referer\" \"$http_user_agent\"\'', )
     argz.add_argument("-g", "--gzip",
                       action="store",
                       dest="gzipindex",
@@ -1210,10 +1286,14 @@ def interactiveMode():
                            "match in order to be used for output log generation. Only lines containing an IP that matches one or more of these will "
                            "be used. Separate one or more IPs or CIDRs here by commas; for example, '--ipfilter \"123.4.5.6,145.0.0.0/16,2001:db8::/48\"'. "
                            "If not provided, use all otherwise valid template log lines in generating the output logs.")
+    argz.add_argument("--inputformat",
+                      action="store",
+                      dest="inputformat",
+                      default=DEFAULT_FORMAT,
+                      help='Format of individual lines in the template log file(s) provided. Default=\'%s\'' % DEFAULT_FORMAT)
     argz.add_argument("--nouatag",
                       action="store_true",
                       dest="excludeuatag",
-                      default=False,
                       help="If specified, does not append the custom 'Flan/%s' tag to all of the user agents in the generated file(s). Default=append "
                            "the tag to all UAFactory." % __VERSION__)
     argz.add_argument("-j",
@@ -1226,7 +1306,6 @@ def interactiveMode():
     argz.add_argument("-k",
                       action="store_true",
                       dest="quote",
-                      default=False,
                       help="If specified, adds single quotes around each generated log line. Useful for some downstream consumers. Default=no quotes added.")
     argz.add_argument("-l", "--linedelimiter",
                       action="store",
@@ -1244,10 +1323,9 @@ def interactiveMode():
     argz.add_argument("--meta",
                       action="store_true",
                       dest="meta",
-                      default=False,
                       help='Collect and emit (at the end) execution metadata and per-hour cumulative counts on all the log entries generated. '
                            'Use this to identify the source of your generated data and verify '
-                           'the spread across your chosen distribution. IF -o is specified, this is in JSON format, otherwise it is a human-readable print format. '
+                           'the spread across your chosen distribution. If -o is specified, this is in JSON format, otherwise it is a human-readable print format. '
                            'Default=no metadata emitted.')
     argz.add_argument("-n", "--numfiles",
                       action="store",
@@ -1262,17 +1340,21 @@ def interactiveMode():
                       default="none",
                       help="If specified, ignores the output directory and -n flag values, enables quiet mode (-q), and streams all output "
                            "to the target, one of : 'stdout' (other options tbd). If not specified (the default), output is written to file(s) in the output directory provided.")
+    argz.add_argument("--outputformat",
+                      action="store",
+                      dest="outputformat",
+                      default=DEFAULT_FORMAT,
+                      help='Format of individual emitted entries in the generated logs. If provided, overrides the combined format (-f) '
+                           'setting. Special values: json=emits entries in JSON format. Default=\'%s\'' % DEFAULT_FORMAT)
     argz.add_argument("-p",
                       action="store_true",
                       dest="preserve_sessions",
-                      default=False,
                       help="If specified, preserve sessions (specifically, pathing order for a given IP/UA/user combo). "
                            "'-m onetoone' must also be specified for this to work."
                            "If not specified (the default), do not preserve sessions.")
     argz.add_argument("--pace",
                       action="store_true",
                       dest="pace",
-                      default=False,
                       help="If specified, syncs the timestamps in the generated log records with the current clock time at generation, "
                            "so that log entry . Default=no pacing (write/stream as fast as possible).", )
     argz.add_argument("--profile",
@@ -1282,7 +1364,6 @@ def interactiveMode():
     argz.add_argument("-q",
                       action="store_true",
                       dest="quiet",
-                      default=False,
                       help="Basho-like stdout. Default=Proust-like stdout.")
     argz.add_argument("-r", "--records",
                       action="store",
@@ -1330,7 +1411,6 @@ def interactiveMode():
     argz.add_argument("-w",
                       action="store_true",
                       dest="overwrite",
-                      default=False,
                       help="If specified, delete any generated log files if they already exist. "
                            "If not specified (the default), exit with an error if any log file to be generated already exists.")
     argz.add_argument("-x", "--regex",
@@ -1343,7 +1423,6 @@ def interactiveMode():
     argz.add_argument("-y",
                       action="store_true",
                       dest="replay",
-                      default=False,
                       help="If specified, saves the parsed log file in a replay log (called 'flan.replay' in the current directory) "
                            "for faster subsequent reload and execution on the same data.")
     tz = datetime.datetime.now(timezone.utc).astimezone().strftime('%z')
@@ -1359,7 +1438,7 @@ def interactiveMode():
     make_flan(options)
     if options.profile:
         x = 1024.0 if sys.platform == "darwin" else 1.0 if sys.platform == "linux" else 1.0
-        print("\n\r%s MB maximum (peak) memory used" % str(round(MAX_RSS_MEMORY_USED / 1024.0 / x, 3)))
+        info("\n\r%s MB maximum (peak) memory used" % str(round(MAX_RSS_MEMORY_USED / 1024.0 / x, 3)))
 
 
 class FlanService(Service):
@@ -1383,15 +1462,17 @@ class FlanService(Service):
                 botfilter='seen',
                 delimiter='crlf',
                 distribution='normal',
+                emitjson=False,
                 end_dt=None,
                 excludeuatag=False,
                 files=10,
-                format='$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent"',
+                inputformat=DEFAULT_FORMAT,
                 gzipindex=0,
                 ipfilter='',
                 ipmapping='onetomany',
                 meta=False,
                 outputdir='',
+                outputformat=DEFAULT_FORMAT,
                 overwrite=True,
                 pace=False,
                 period=0,

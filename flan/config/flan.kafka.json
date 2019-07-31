@@ -1,0 +1,13 @@
+[
+  {
+    "enabled": "False",
+    "producer": [
+      {
+        "loginfo": "False",
+        "logerrors": "True",
+        "bootstrap.servers": "mybroker1,mybroker2,...",
+        "topic": "mytopic"
+      }
+    ]
+  }
+]

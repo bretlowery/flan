@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## v0.0.21 "Quartet"
+Kafka integration APLHA
+Support JSON output
+Replace -f with --inputformat & --outputformat
+
 ## v0.0.20 "Beyond The Missouri Sky"
 Stable release
 
