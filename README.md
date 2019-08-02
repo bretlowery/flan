@@ -101,13 +101,15 @@ I'm not currently supporting preservation of sessions across a time distribution
 Flan is developed and tested on Python 3.7 (as of July 2019). It's untested on other versions. 
 
 ### Dependencies
->   python-dateutil <br>
+>  numpy <br>
+   python-dateutil <br>
+   pyYAML <br>
+   service <br>
    ua-parser <br>
    user-agents<br>
-   numpy <br>
-   service <br>
-   splunk-sdk (only if using Splunk integration)<br>
    confluent_kafka (only if using Kafka integration)<br>
+   splunk-sdk (only if using Splunk integration)<br>
+   
 
 ### Installation
 
@@ -155,7 +157,7 @@ Streaming output:
 flan -c [-o outputtarget] [--pace] [arguments] templatelogspec
 ```
 
-##### SERVICE/DAEMON MODE (uses flan.config.json)
+##### SERVICE/DAEMON MODE (uses flan.config.yaml)
 
 ```
 flan [ start | stop | status ]
@@ -163,7 +165,7 @@ flan [ start | stop | status ]
 
 ##### CONTROLLING FLAN VIA ARGUMENTS AND CONFIGS
 
-For service mode, use flan.config.json instead of commandline arguments. Each of its entries map one-to-one to one of the arguments below. Quiet (-q), stats (--stats), profile (--profile), and overwrite (-w) are set to fixed defaults in service mode and if set in flan.config.json are ignored. flan.config.json is ignored in interactive mode.
+For service mode, use flan.config.yaml instead of commandline arguments. Each of its entries map one-to-one to one of the arguments below. Quiet (-q), stats (--stats), profile (--profile), and overwrite (-w) are set to fixed defaults in service mode and if set in flan.config.yaml are ignored. flan.config.yaml is ignored in interactive mode.
 
 
 | Commandline Argument            | Definition                             | Default       |

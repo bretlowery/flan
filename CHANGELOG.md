@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## v0.0.23 "Like Minds"
+YAML-based configs
+
 ## v0.0.22 "Blue Break Beats Vol. 4"
 Splunk and Kafka integrations
 

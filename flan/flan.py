@@ -23,8 +23,10 @@ from service import Service, find_syslog
 import resource
 import logging
 from logging.handlers import SysLogHandler
+import logging.config
+import yaml
 
-__VERSION__ = "0.0.22"
+__VERSION__ = "0.0.23"
 
 R_MAX = 100000000
 R_DEFAULT_NOSTREAMING = 10000
@@ -193,7 +195,7 @@ UA_FREQUENCIES = \
 IPMAP = {}
 IPMAP2 = {}
 REPLAY_LOG_FILE = os.path.join(os.path.dirname(__file__), 'flan.replay')
-SERVICE_CONFIG_FILE = os.path.join(os.path.dirname(__file__), 'config/flan.config.json')
+SERVICE_CONFIG_FILE = os.path.join(os.path.dirname(__file__), 'config/flan.config.yaml')
 INTEGRATION_CONFIG_FILE = ""
 LOGGER = None
 
@@ -264,21 +266,27 @@ def istruthy(string):
     }.get(string.strip().lower(), False)
 
 
+def getconfig(yamlfile, root):
+    yamlfile = yamlfile.strip()
+    try:
+        with open(yamlfile) as config_file:
+            configyaml = yaml.safe_load(config_file)
+    except:
+        error('%s was not found, is not readable, has insufficient read permissions, or is not a valid YAML file' % yamlfile)
+        exit(1)
+    try:
+        configdict = configyaml[root] if root else configyaml
+    except:
+        error('%s not found within %s' % (root, yamlfile))
+        exit(1)
+    return configdict
+
+
 def proxy(target):
     target = target.strip().lower()
     integrationconfig = None
     if target != "stdout":
-        try:
-            with open(INTEGRATION_CONFIG_FILE) as config_file:
-                configjson = json.load(config_file)
-        except:
-            error('%s was not found, is not readable, has insufficient read permissions, or is not a valid JSON file' % INTEGRATION_CONFIG_FILE)
-            exit(1)
-        try:
-            integrationconfig = configjson[target]
-        except:
-            error('A %s integration was not found within %s' % (target, INTEGRATION_CONFIG_FILE))
-            exit(1)
+        integrationconfig = getconfig(INTEGRATION_CONFIG_FILE, target)
         try:
             enabled = istruthy(integrationconfig["enabled"])
         except:
@@ -1491,19 +1499,14 @@ class FlanService(Service):
                 timezone='-0400',
                 uafilter='all')
         immutable_service_settings = ["meta", "overwrite", "profile", "quiet"]
-        # look for flan.config.json
-        # update default service settings with the entries in the flan.config.json
-        try:
-            with open(SERVICE_CONFIG_FILE) as config_file:
-                configjson = json.load(config_file)
-        except:
-            error('flan.config.json was not found, is not readable, has insufficient read permissions, or is not a valid JSON file')
-            exit(1)
-        for setting in configjson:
+        # look for flan.config.yaml
+        # update default service settings with the entries in the flan.config.yaml
+        settings = getconfig(SERVICE_CONFIG_FILE, "settings")
+        for setting in settings:
             setting = setting.strip().lower()
             if setting not in immutable_service_settings:
                 try:
-                    options.vars()[setting] = configjson[setting]
+                    options.vars()[setting] = settings[setting]
                 except:
                     error('unrecognized setting "%s" in %s' % (setting, SERVICE_CONFIG_FILE))
                     exit(1)
