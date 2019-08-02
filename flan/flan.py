@@ -268,6 +268,7 @@ def istruthy(string):
 
 def getconfig(yamlfile, root):
     yamlfile = yamlfile.strip()
+    configdict = {}
     try:
         with open(yamlfile) as config_file:
             configyaml = yaml.safe_load(config_file)
@@ -1460,7 +1461,7 @@ class FlanService(Service):
         LOGGER = self.logger
 
     def run(self):
-        # wait 30s when running on a Mac to allow opportunity to attach to the debugger and debug the service
+        # wait 30s when running in a Mac dev env to allow opportunity to attach to the debugger and debug the service
         sleep(30) if sys.platform == "darwin" else sleep(0)
         LOGGER.info("Starting Flan/%s" % __VERSION__)
         # set up defaults when running as a service
