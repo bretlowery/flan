@@ -15,39 +15,49 @@
 # More info here: https://github.com/edenhill/librdkafka/wiki/Broker-version-compatibility
 #
 
-from confluent_kafka import Producer
-from flan.flan import istruthy, error, info, __VERSION__
+from confluent_kafka import Producer, KafkaException
+from flan import istruthy, error, info, __VERSION__
 import socket
+import string
 
 
 class Kafka:
 
     class Writer:
 
-        def __init__(self, producer):
-            self.producer = producer
+        def __init__(self, publisher):
+            self.publisher = publisher
 
         def _callback(self, err, msg):
             if err is not None:
-                if self.producer.loglevel == "error":
-                    error('Flan-Kafka delivery failed: {}'.format(err))
-                if self.producer.haltonerror:
-                    exit(1)
-            elif self.producer.loglevel == "info":
+                self.publisher.err(err)
+            elif self.publisher.loglevel == "info":
                 info('Flan->Kafka {} [{}]'.format(msg.topic(), msg.partition()))
 
         def write(self, data):
-            self.producer.poll(0)
-            self.producer.produce(self.producer.topic, data.encode('utf-8'), callback=self._callback)
+            self.publisher.producer.poll(0)
+            self.publisher.producer.produce(self.publisher.topic, data.encode('utf-8'), callback=self._callback)
             return
 
     def __init__(self, config):
-        self.config = config
-        self.loglevel = "info" if istruthy(config["loginfo"]) else "errors" if istruthy(config["logerrors"]) else "none"
-        self.haltonerror = istruthy(config["haltonerror"])
-        self.producer = Producer(config["producer"])
-        self.topic = self.config['topic'] if self.config['topic'] else 'Flan/%s:%s' % (__VERSION__, socket.getfqdn())
-        self.writer = self.Writer(self.producer)
+        self.config = config["producer"]
+        self.loglevel = "info" if istruthy(self.config["loginfo"]) \
+            else "errors" if istruthy(self.config["logerrors"]) \
+            else "none"
+        self.haltonerror = istruthy(self.config["haltonerror"])
+        servers = {'bootstrap.servers': self.config["bootstrap.servers"]}
+        try:
+            self.producer = Producer(servers)
+        except KafkaException as e:
+            self.err(str(e))
+            exit(1)
+        # Kafka topic cleaning
+        topic = 'Flan_%s-%s' % (__VERSION__, socket.getfqdn().translate(str.maketrans(string.punctuation, '_' * len(string.punctuation))))
+        if 'topic' in self.config:
+            if self.config['topic']:
+                topic = self.config['topic'].strip().translate(str.maketrans(string.punctuation, '_'*len(string.punctuation)))
+        self.topic = topic[:255]
+        self.writer = self.Writer(self)
 
     @property
     def target(self):
@@ -66,3 +76,8 @@ class Kafka:
             self.producer = None
         return
 
+    def err(self, err):
+        if self.loglevel == "error":
+            error('Flan-Kafka failed: {}'.format(err))
+        if self.haltonerror:
+            exit(1)

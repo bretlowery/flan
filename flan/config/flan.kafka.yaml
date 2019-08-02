@@ -1,11 +1,12 @@
 kafka:
-    enabled: False
+    enabled: True
     producer:
         loginfo: False
         logerrors: True
         haltonerror: True
-        bootstrap.servers: mybroker1,mybroker2...
-        topic: mytopic
+        bootstrap.servers: localhost:9092
+#       topic: mytopic
+
       
     
   
