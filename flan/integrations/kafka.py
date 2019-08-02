@@ -16,7 +16,9 @@
 #
 
 from confluent_kafka import Producer
-from flan.flan import istruthy, error, info
+from flan.flan import istruthy, error, info, __VERSION__
+import socket
+
 
 class Kafka:
 
@@ -36,7 +38,7 @@ class Kafka:
 
         def write(self, data):
             self.producer.poll(0)
-            self.producer.produce(self.producer.config['topic'], data.encode('utf-8'), callback=self._callback)
+            self.producer.produce(self.producer.topic, data.encode('utf-8'), callback=self._callback)
             return
 
     def __init__(self, config):
@@ -44,6 +46,7 @@ class Kafka:
         self.loglevel = "info" if istruthy(config["loginfo"]) else "errors" if istruthy(config["logerrors"]) else "none"
         self.haltonerror = istruthy(config["haltonerror"])
         self.producer = Producer(config["producer"])
+        self.topic = self.config['topic'] if self.config['topic'] else 'Flan/%s:%s' % (__VERSION__, socket.getfqdn())
         self.writer = self.Writer(self.producer)
 
     @property
