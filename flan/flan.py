@@ -25,6 +25,7 @@ import logging
 from logging.handlers import SysLogHandler
 import logging.config
 import yaml
+from urllib import request
 
 __VERSION__ = "0.0.23"
 
@@ -198,6 +199,8 @@ REPLAY_LOG_FILE = os.path.join(os.path.dirname(__file__), 'flan.replay')
 SERVICE_CONFIG_FILE = os.path.join(os.path.dirname(__file__), 'config/flan.config.yaml')
 INTEGRATION_CONFIG_FILE = ""
 LOGGER = None
+RSS_MEMORY_BASE = 0
+MAX_RSS_MEMORY_USED = 0
 
 def info(msg):
     global LOGGER
@@ -215,11 +218,6 @@ def error(msg):
     else:
         print(msg, file=sys.stderr)
     exit(1)
-
-
-RSS_MEMORY_BASE = 0
-MAX_RSS_MEMORY_USED = 0
-
 
 def profile_memory(meta):
     global RSS_MEMORY_BASE, MAX_RSS_MEMORY_USED
@@ -256,14 +254,14 @@ def uatostructstr(uastring):
            )
 
 
-def istruthy(string):
+def istruthy(val):
     return {
         't': True,
         'true': True,
         'y': True,
         'yes': True,
         '1': True
-    }.get(string.strip().lower(), False)
+    }.get(str(val).strip().lower(), False)
 
 
 def getconfig(yamlfile, root):
@@ -290,7 +288,7 @@ def proxy(target):
         integrationconfig = getconfig(INTEGRATION_CONFIG_FILE, target)
         try:
             enabled = istruthy(integrationconfig["enabled"])
-        except:
+        except Exception as e:
             enabled = False
             pass
         if not enabled:
@@ -483,13 +481,13 @@ class MetaManager:
         # --nouatag
         self.excludeuatag = options.excludeuatag
         # -o
-        self.streamtarget = self._onein(options.streamtarget, ["none", "stdout", "kafka"], "none")
+        self.streamtarget = self._onein(options.streamtarget, ["none", "stdout", "kafka", "splunk"], "none")
         if self.streaming and not self.streamtarget:
             error("-o must specify a valid supported streaming target choice (for example, 'stdout') if -c is also specified.")
         if self.servicemode and self.streaming and self.streamtarget == "stdout":
             error("stdout streaming is not supported in service mode.")
-        if self.streaming and self.streamtarget not in ["none", "stdout"]:
-            INTEGRATION_CONFIG_FILE = os.path.join(os.path.dirname(__file__), 'config/flan.%s.json' % self.streamtarget)
+        if self.streamtarget not in ["none", "stdout"]:
+            INTEGRATION_CONFIG_FILE = os.path.join(os.path.dirname(__file__), 'config/flan.%s.yaml' % self.streamtarget)
         # -y
         self.replay = options.replay
         # -k
@@ -742,9 +740,20 @@ class DataManager:
     def _load_bot_json():
         blist = []
         try:
-            jf = os.path.join(os.path.dirname(__file__), 'user-agents.json')
-            with open(jf) as json_file:
-                uajson = json.load(json_file)
+            url = 'https://raw.githubusercontent.com/monperrus/crawler-user-agents/master/crawler-user-agents.json'
+            uajson = json.load(request.urlopen(url).read())
+        except:
+            uajson = None
+            pass
+        if not uajson:
+            try:
+                jf = os.path.join(os.path.dirname(__file__), 'user-agents.json')
+                with open(jf) as json_file:
+                    uajson = json.load(json_file)
+            except:
+                uajson = None
+                pass
+        try:
             for ua in uajson:
                 if "instances" in ua:
                     if len(ua["instances"]) > 0:
