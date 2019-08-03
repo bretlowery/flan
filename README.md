@@ -92,7 +92,7 @@ Disk usage (if you're using file mode) is highly dependent on the length of the 
 
 CPU cycles are mostly taken up by the hidden Bitcoin miner I've added (just kidding... Flan is not particularly CPU intensive). 
 
-Overall runtime is dependent on the time range between your start and end dates, the size of your template log, and the total number of records you are generating. Larger template logs create more accurate output data, but take longer to parse and in particular to go through and obfuscate all of the user agents, given that they are pretty-free-form, often-lengthy strings. Use replay mode to minimize template log parse time. Quite mode will also reduce runtime.
+Overall runtime is dependent on the time range between your start and end dates, the size of your template log, and the total number of records you are generating. Larger template logs create more accurate output data, but take longer to parse and in particular to go through and obfuscate all of the user agents, given that they are pretty-free-form, often-lengthy strings. Use replay mode to minimize template log parse time. Quiet mode will also reduce runtime.
 
 I'm not currently supporting preservation of sessions across a time distribution period boundary. That would mean I'd have to keep multiple time distribution periods cached simultaneously, and that just eats memory alive.
 
