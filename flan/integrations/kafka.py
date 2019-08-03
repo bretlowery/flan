@@ -35,8 +35,11 @@ class Kafka:
                 info('Flan->Kafka {} [{}]'.format(msg.topic(), msg.partition()))
 
         def write(self, data):
-            self.publisher.producer.poll(0)
-            self.publisher.producer.produce(self.publisher.topic, data.encode('utf-8'), callback=self._callback)
+            try:
+                self.publisher.producer.poll(0)
+                self.publisher.producer.produce(self.publisher.topic, data.encode('utf-8'), callback=self._callback)
+            except KafkaException as e:
+                self.publisher.err(str(e))
             return
 
     def __init__(self, config):
@@ -78,6 +81,6 @@ class Kafka:
 
     def err(self, err):
         if self.loglevel == "error":
-            error('Flan-Kafka failed: {}'.format(err))
+            error('Flan->Kafka failed: {}'.format(err))
         if self.haltonerror:
             exit(1)
