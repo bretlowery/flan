@@ -235,7 +235,7 @@ Possibly:
 
 -------------
 ### Citations
-crawler-user-agents.json Copyright (c) 2017 Martin Monperrus
+crawler-user-agents.json Copyright (c) 2019 Martin Monperrus <br>
 https://github.com/monperrus/crawler-user-agents/blob/master/crawler-user-agents.json
 
 ## PRs welcome!
