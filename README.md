@@ -233,4 +233,9 @@ Possibly:
 <br/>https://en.wikipedia.org/wiki/Traffic_generation_model
 <br>https://en.wikipedia.org/wiki/List_of_probability_distributions
 
+-------------
+### Citations
+crawler-user-agents.json Copyright (c) 2017 Martin Monperrus
+https://github.com/monperrus/crawler-user-agents/blob/master/crawler-user-agents.json
+
 ## PRs welcome!
