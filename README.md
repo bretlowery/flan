@@ -94,7 +94,7 @@ CPU cycles are mostly taken up by the hidden Bitcoin miner I've added (just kidd
 
 Overall runtime is dependent on the time range between your start and end dates, the size of your template log, and the total number of records you are generating. Larger template logs create more accurate output data, but take longer to parse and in particular to go through and obfuscate all of the user agents, given that they are pretty-free-form, often-lengthy strings. Use replay mode to minimize template log parse time. Quiet mode will also reduce runtime.
 
-I'm not currently supporting preservation of sessions across a time distribution period boundary. That would mean I'd have to keep multiple time distribution periods cached simultaneously, and that just eats memory alive.
+I'm not currently supporting preservation of sessions across a time distribution period boundary. That would mean I'd have to keep multiple time distribution periods cached simultaneously, and that just eats memory alive. So for example, a 3-day range starting at midnight between start and end dates, using a normal distribution and session preservation, creates a "3-humped" pattern with saddles at midnight, peaks at noon, and sessions preserved within each day/hump but not spanning days/humps.
 
 ## Instructions
 
