@@ -215,9 +215,9 @@ Or, just Google "example access.log files".
 ### Future Enhancements
 Definitely:
 
-1. Integrations: Splunk, QRadar, LogRhythm, SolarWinds, LogStash/ELK, Graylog, LOGalyze, ManageEngine, FluentD, Apache Flume, RabbitMQ, Redis Pub/Sub, Apache Kafka, Apache Pulsar, Apache Nifi are a few off the top of my head.
+1. Integrations: ActiveMQ/Amazon MQ, other AWS services (one or more of SQS, EventBridge, IoT Events), Redis Pub/Sub, FluentD, Apache Flume, RabbitMQ, Apache Pulsar, Apache Nifi are a few off the top of my head and in no particular order. I've removed some things I had on this list: Graylog, ELK, etc. as I'm not sure those are the right sinks solving the right use cases for this. If you want an integration, ask, or submit a PR.
 
-2. Could always use tuning.
+2. Could always use tuning/refactoring. Ongoing effort. Warning: I tend to refactor every couple of releases.
 
 Possibly:
 
