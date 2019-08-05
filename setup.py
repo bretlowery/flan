@@ -1,5 +1,5 @@
 from setuptools import setup
-from flan.flan import __VERSION__
+from settings import __VERSION__
 
 setup(name='flan',
       version=__VERSION__,

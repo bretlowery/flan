@@ -466,12 +466,27 @@ class FlanTestCases(TestCase):
                                          "remote_addr", "like", "^75.24.111.(?<!\d)(?:[1-9]?\d|1\d\d|2(?:[0-4]\d|5[0-5]))(?!\d)",
                                          startonline=None, endonline=None, status='pass', scope='any')
         lines = [v for k, v in matches.items()]
-
         ips = [line['remote_addr'] for line in lines]
         distinctips = collections.Counter(ips).keys()
         self.assertTrue(len(distinctips) > 1)
         self.assertTrue(line['request'] in ['POST /a.html HTTP/1.0', 'POST /b.html HTTP/1.0', 'POST /c.html HTTP/1.0'] for line in lines)
 
+    # def test_1223_kafka_integration(self):
+    #     """
+    #     Kafka integration test
+    #     """
+    #     # stop zookeeper & kafka if they are running
+    #     os.system("kafka-server-stop")
+    #     os.system("zookeeper-server-stop")
+    #     # start zookeeper
+    #     os.system("zookeeper-server-start -daemon /usr/local/etc/kafka/zookeeper.properties")
+    #     # start kafka
+    #     os.system("kafka-server-start -daemon /usr/local/etc/kafka/server.properties")
+    #     # test
+    #     self.chk4success("-o kafka %s" % testtemplate1)
+    #     # stop zookeeper & kafka if they are running
+    #     os.system("kafka-server-stop")
+    #     os.system("zookeeper-server-stop")
 
     #
     # tear down

@@ -9,7 +9,7 @@ class Splunk(FlanIntegration):
         name = self.__class__.__name__
         super().__init__(name, meta, config)
 
-    def custominit(self):
+    def prepare(self):
         try:
             self.service = client.connect(
                     host=self.config["host"],
@@ -25,7 +25,7 @@ class Splunk(FlanIntegration):
                           (self.name, self.config["host"], self.config["port"], self.config["username"], str(e)))
             exit(1)
 
-    def writer(self, data):
+    def send(self, data):
         try:
             self.socket.send(data)
             if self.config["loglevel"] == "info":

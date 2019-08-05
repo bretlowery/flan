@@ -1,8 +1,7 @@
-
 import subprocess
 import re
 import json
-from flan.flan import SUPPORTED_FIELDS, DEFAULT_FORMAT
+from settings import SUPPORTED_FIELDS, DEFAULT_FORMAT
 import shlex
 from dateutil import parser as dtparser
 import os

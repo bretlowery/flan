@@ -18,6 +18,13 @@ from flanintegration import FlanIntegration
 from confluent_kafka import Producer, KafkaException
 import socket
 import string
+import json
+try:
+    from confluent_kafka import avro
+    from confluent_kafka.avro import AvroProducer
+    from settings import AVRO_KEY_SCHEMA, AVRO_VALUE_SCHEMA
+except:
+    pass
 
 
 class Kafka(FlanIntegration):
@@ -26,10 +33,17 @@ class Kafka(FlanIntegration):
         name = self.__class__.__name__
         super().__init__(name, meta, config)
 
-    def custominit(self):
-        servers = {'bootstrap.servers': self.config["bootstrap.servers"]}
+    def prepare(self):
         try:
-            self.producer = Producer(servers)
+            if self.meta.outputstyle == "avro":
+                servers = {
+                    'bootstrap.servers': self.config["bootstrap.servers"],
+                    'schema.registry.url': self.config["avro.schema.registry.url"],
+                }
+                self.producer = AvroProducer(servers, default_key_schema=AVRO_KEY_SCHEMA, default_value_schema=AVRO_VALUE_SCHEMA)
+            else:
+                servers = {'bootstrap.servers': self.config["bootstrap.servers"]}
+                self.producer = Producer(servers)
         except KafkaException as e:
             self.logerr(str(e))
             exit(1)
@@ -40,15 +54,19 @@ class Kafka(FlanIntegration):
                 topic = self.config['topic'].strip().translate(str.maketrans(string.punctuation, '_'*len(string.punctuation)))
         self.topic = topic[:255]
 
-    def customwrite(self, data):
+    def send(self, data):
         try:
             self.producer.poll(0)
-            self.producer.produce(self.topic, data.encode('utf-8'), callback=self.customcallback)
+            if self.meta.outputstyle == "avro":
+                jsondata = json.loads(data)
+                self.producer.produce(self.topic, value=jsondata, key=jsondata, callback=self.kafkacallback)
+            else:
+                self.producer.produce(self.topic, data.encode('utf-8'), callback=self.kafkacallback)
         except KafkaException as e:
             self.logerr(str(e))
         return
 
-    def customcallback(self, err, msg):
+    def kafkacallback(self, err, msg):
         if err is not None:
             self.logerr(err)
         elif self.loglevel == "info":
