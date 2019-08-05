@@ -4,8 +4,8 @@ import sys
 
 class Stdout:
 
-    def __init__(self, config):
-        self.config = config
+    def __init__(self, meta, config):
+        return
 
     @property
     def target(self):

@@ -27,6 +27,7 @@ import logging.config
 import yaml
 from urllib import request
 
+
 __VERSION__ = "0.0.23"
 
 R_MAX = 100000000
@@ -281,8 +282,8 @@ def getconfig(yamlfile, root):
     return configdict
 
 
-def proxy(target):
-    target = target.strip().lower()
+def proxy(meta):
+    target = meta.streamtarget
     integrationconfig = None
     if target != "stdout":
         integrationconfig = getconfig(INTEGRATION_CONFIG_FILE, target)
@@ -297,8 +298,8 @@ def proxy(target):
     import importlib
     # Load "flan.integrations.kafka.Kafka", "flan.integrations.pulsar.Pulsar", etc.
     IntegrationClass = getattr(importlib.import_module("integrations.%s" % target), target.capitalize())
-    # Instantiate the class (pass arguments to the constructor, if needed)
-    proxy = IntegrationClass(integrationconfig)
+    # Instantiate the class. This connects, authenticates, etc to the target sink & handles all prep up to the actual write.
+    proxy = IntegrationClass(meta, integrationconfig)
     return proxy
 
 
@@ -626,11 +627,14 @@ class MetaManager:
         # --inputformat, --outputformat
         self.inputformat = options.inputformat.lower()
         if options.outputformat:
-            if options.outputformat.strip() == "json":
+            o = options.outputformat.strip()
+            if o in ("json", "avro"):
+                self.outputstyle = o
                 self.outputformat = JSON_FORMAT
                 self.delimiter = ",\r\n"
             else:
-                self.outputformat = options.outputformat.lower()
+                self.outputstyle = "text"
+                self.outputformat = o
 
         # -m
         if self.preserve_sessions:
@@ -1108,7 +1112,7 @@ def make_flan(options, servicemode=False):
     uas = None
     timestamp = None
     targetproxy = None
-
+    skema = None
     while True:
         #
         # Build the time slice distribution to attribute fake log entries to
@@ -1144,7 +1148,7 @@ def make_flan(options, servicemode=False):
                     if not meta.quiet:
                         info('Beginning write of fake entries to log %s.' % log.name)
                 else:
-                    targetproxy = proxy(meta.streamtarget)
+                    targetproxy = proxy(meta)
                     log = targetproxy.target
                 # get 1st entry in the time distribution
                 timeslot = _next(time_distribution)
@@ -1363,7 +1367,7 @@ def interactiveMode():
                       dest="outputformat",
                       default=DEFAULT_FORMAT,
                       help='Format of individual emitted entries in the generated logs. If provided, overrides the combined format (-f) '
-                           'setting. Special values: json=emits entries in JSON format. Default=\'%s\'' % DEFAULT_FORMAT)
+                           'setting. Special values: avro=emits entries in Avro format, json=emits entries in JSON format. Default=\'%s\'' % DEFAULT_FORMAT)
     argz.add_argument("-p",
                       action="store_true",
                       dest="preserve_sessions",
