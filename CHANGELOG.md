@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## v0.0.24 "Jim Hall & ..."
+Refactored settings and integrations; Avro output support
+
 ## v0.0.23 "Like Minds"
 YAML-based configs
 

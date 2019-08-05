@@ -15,7 +15,7 @@ FLAN is a Python 3.x utility that creates one or more fake Apache or NGINX acces
 9. Write to files, or stream results to stdout;
 10. Optionally gzip any or all generated log files.
 11. Run interactively, or as a service/daemon.
-12. Completed integrations: write/stream to stdout, uncompressed files, gzip files, Splunk, Kafka. More to come...
+12. Completed integrations: write/stream to stdout, uncompressed files, gzip files, Splunk (text or JSON), Kafka (text, JSON or Avro). More to come...
 
 --------------
 ### Background
@@ -175,10 +175,10 @@ For service mode, use flan.config.yaml instead of commandline arguments. Each of
 | -c | ALPHA FEATURE! Continuous streaming mode. If specified, enables continuous streaming. More info here to follow on next release. | No continuous streaming |
 | -d,<br>--distribution | One of:<br><br>normal=use a normal distribution centered midway between start and end datetimes for the time dimension;<br><br>random=use a random ("shotgun blast") distribution. | normal |
 | -e,<br>--end | Specifies the end datetime to use for the generated log entries. All log entries will have a timestamp on or before this date. | Midnight tomorrow local/server time |
-| -f,<br>--format | Your Apache/NGINX log entry format string. | '$remote_addr - $remote_user [$time_local] \"$request\" $status $body_bytes_sent \"$http_referer\" \"$http_user_agent\"' |
 | -g,<br>--gzip | Gzip support. Used in conjunction with the passed -n value, this specifies a file index number at which to begin gzipping generated log files. It must be between 0 and the -n value provided. For example, "-n 5 -g 3" generates log files called "access.log", "access.log.1", "access.log.2.gz", "access.log.3.gz", and "access.log.4.gz": 5 total files, the last 3 of which are gzipped. | 0; no gzipping occurs. |
 | -h | Print out these options on the commandline. | |
 | -i,<br>--ipfilter | If provided, this should specify one or more optional IP(s) and/or CIDR range(s) in quotes that all entries in the template log file must match in order to be used for output log generation. Only lines containing an IP that matches one or more of these will be used. Separate one or more IPs or CIDRs here by commas; for example, '--ipfilter \"123.4.5.6,145.0.0.0/16,2001:db8::/48\"'. | Use all otherwise eligible template log lines and their IPs in generating the output logs. |
+| --inputformat | The format of each line in the the template log file (a valid NCSA Combined Log Format string). | '$remote_addr - $remote_user [$time_local] \"$request\" $status $body_bytes_sent \"$http_referer\" \"$http_user_agent\"' |
 | -j | Continuous streaming periodicity. UNSUPPORTED AS OF v0.0.15. TBD. | N/A |
 | -k | If specified, add single quotes to the beginning and end of every generated log entry line. | Do not add quotes. |
 | -l,<br>--linedelimiter | Line delimiter to append to all generated log entries, one of:<br><br>[None, No, False, N, F];<br>[Comma, C];<br>[Tab, T];<br>CR;<br>LF;<br>CRLF.| CRLF |
@@ -187,7 +187,7 @@ For service mode, use flan.config.yaml instead of commandline arguments. Each of
 | -n,<br>--numfiles | The total number of access.log files to generate. Min=1, Max=1000. Example: '-n 4' creates access.log, access.log.1, access.log.2, and access.log.3 in the output directory. | 1 |
 | --nouatag | If specified, excludes the "Flan/<version#> (https://bret.guru/flan)" from the user agent values in the generated log files. | Append the Flan UA tag to all generated UAs. |
 | -o | Stream mode output target. If specified, ignores the output directory and -n flag values, enables quiet mode (-q), and streams all output to the designated target. Only stdout is currently supported. | Output is written to file(s) in the output directory provided. |
-| --outputformat | Format of individual emitted entries in the generated logs. If provided, overrides the combined format (-f) setting. Special values: json=emits entries in JSON format. | The -f setting provided |
+| --outputformat | Format of individual emitted entries in the generated logs. If provided, overrides the combined format (-f) setting. A valid NCSA Combined Log Format string, or one of two special values: json=emits entries in JSON format, avro=emits JSON-encoded entries in Avro binary format. | '$remote_addr - $remote_user [$time_local] \"$request\" $status $body_bytes_sent \"$http_referer\" \"$http_user_agent\"' |
 | -p | Session preservation. If specified, preserves sessions as follows:<br><br>1. Ignores the -r setting and generates as many records as exist in the template log file;<br><br>2. Maintains the time index order of the request paths in the template log in the generated logs; <br><br>3. Maintains the UA for each IP found in the template log.<br><br>The -m ipmapping setting must be set to either "onetoone" or "none". | No session preservation. Request paths are randomly assigned throughout the generated time distribution, destroying sessions. |
 | --pace | Pacing. If specified, syncs the timestamps in the generated log records with the current clock time as log entries are generated such that log entries are emitted in apparent 'real time'. Each second in the log timestamps corresponds to a second of emission time in real time. | Default=no pacing; emit entries as fast as possible. |
 | -q | Basho-like stdout. | Proust-like stdout. |
