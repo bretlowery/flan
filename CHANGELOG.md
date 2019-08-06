@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## v0.0.26 "Trio 99->00"
+Stable Splunk and Kafka integrations
+
 ## v0.0.25 "A Map Of The World"
 Improved timeout and exception handling when pub/sub integration sinks are not responsive
 
