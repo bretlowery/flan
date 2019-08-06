@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## v0.0.25 "A Map Of The World"
+Improved timeout and exception handling when pub/sub integration sinks are not responsive
+
 ## v0.0.24 "Jim Hall & ..."
 Refactored settings and integrations; Avro output support
 
