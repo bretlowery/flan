@@ -25,7 +25,7 @@ Stable release
 Div by zero bug fix when using -p
 
 
-## v0.0.18 "Passaggio Para Il Paradiso"
+## v0.0.18 "Passaggio Per Il Paradiso"
 Service/daemon mode available
 
 
