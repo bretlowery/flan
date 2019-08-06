@@ -1,7 +1,7 @@
 kafka:
     enabled: True
     producer:
-        loginfo: True
+        loginfo: False
         logerrors: True
         haltonerror: True
         bootstrap.servers: localhost:9092

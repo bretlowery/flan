@@ -1,6 +1,7 @@
 from flanintegration import FlanIntegration
 import splunklib.client as client
 import socket
+import os
 
 
 class Splunk(FlanIntegration):

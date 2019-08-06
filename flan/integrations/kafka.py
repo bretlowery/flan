@@ -19,6 +19,7 @@ from confluent_kafka import Producer, KafkaException
 import socket
 import string
 import json
+import os
 
 try:
     from confluent_kafka import avro
@@ -78,7 +79,7 @@ class Kafka(FlanIntegration):
         if err is not None:
             self.logerr(err)
         elif self.loglevel == "info":
-            self.loginfo('Flan->%s %s [%s]' % (self.name, msg.topic(), msg.partition()))
+            self.loginfo('Flan->%s: sent on topic "%s" [%s]' % (self.name, msg.topic(), msg.partition()))
 
     @property
     def closed(self):
