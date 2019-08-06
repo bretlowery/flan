@@ -72,6 +72,7 @@ class Kafka(FlanIntegration):
                 self.producer.produce(self.topic, data.encode('utf-8'), callback=self.kafkacallback)
         except Exception as e:
             self.logerr(str(e))
+            pass
         return
 
     @exit_after(10)
