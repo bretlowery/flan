@@ -3,19 +3,24 @@
 ## v0.0.25 "A Map Of The World"
 Improved timeout and exception handling when pub/sub integration sinks are not responsive
 
+
 ## v0.0.24 "Jim Hall & ..."
 Refactored settings and integrations; Avro output support
+
 
 ## v0.0.23 "Like Minds"
 YAML-based configs
 
+
 ## v0.0.22 "Blue Break Beats Vol. 4"
 Splunk and Kafka integrations
+
 
 ## v0.0.21 "Quartet"
 Kafka integration ALPHA
 Support JSON output
 Replace -f with --inputformat & --outputformat
+
 
 ## v0.0.20 "Beyond The Missouri Sky"
 Stable release
