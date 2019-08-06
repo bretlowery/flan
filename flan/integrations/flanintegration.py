@@ -1,6 +1,31 @@
 from abc import ABCMeta, abstractmethod
-from flan.flan import istruthy, error, info
+from flan import istruthy, error, info
 import settings
+import threading
+import _thread as thread
+import os
+
+def _timeout(integrationname):
+    error('Flan->%s integration timed out' % integrationname)
+    thread.interrupt_main()  # raises KeyboardInterrupt
+
+def exit_after(s):
+    """
+    Use as decorator to exit process if function takes longer than s seconds
+    """
+    def outer(fn):
+        def inner(*args, **kwargs):
+            x = fn
+            timer = threading.Timer(s, _timeout, args=[fn.__module__])
+            timer.start()
+            try:
+                result = fn(*args, **kwargs)
+            finally:
+                timer.cancel()
+            return result
+        return inner
+    return outer
+
 
 class FlanIntegration:
     __metaclass__ = ABCMeta
@@ -51,8 +76,14 @@ class FlanIntegration:
         return
 
     def logerr(self, err):
-        return error('Flan->%s integration failed: %s' % (self.name, err))
+        if self.loglevel == "errors" or self.haltonerror:
+            error('Flan->%s integration failed: %s' % (self.name, err))
+        if self.haltonerror:
+            os._exit(1)
+        return
 
     def loginfo(self, msg):
-        return info(msg)
+        if self.loglevel == "info":
+            info(msg)
+        return
 

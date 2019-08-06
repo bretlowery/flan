@@ -14,11 +14,12 @@
 #
 # More info here: https://github.com/edenhill/librdkafka/wiki/Broker-version-compatibility
 #
-from flanintegration import FlanIntegration
+from flanintegration import FlanIntegration, exit_after
 from confluent_kafka import Producer, KafkaException
 import socket
 import string
 import json
+
 try:
     from confluent_kafka import avro
     from confluent_kafka.avro import AvroProducer
@@ -30,10 +31,17 @@ except:
 class Kafka(FlanIntegration):
 
     def __init__(self, meta, config):
-        name = self.__class__.__name__
-        super().__init__(name, meta, config)
+        self.name = self.__class__.__name__
+        super().__init__(self.name, meta, config)
 
+    @exit_after(10)
     def prepare(self):
+        # Kafka topic cleaning
+        topic = 'Flan_%s-%s' % (self.version, socket.getfqdn().translate(str.maketrans(string.punctuation, '_' * len(string.punctuation))))
+        if 'topic' in self.config:
+            if self.config['topic']:
+                topic = self.config['topic'].strip().translate(str.maketrans(string.punctuation, '_' * len(string.punctuation)))
+        self.topic = topic[:255]
         try:
             if self.meta.outputstyle == "avro":
                 servers = {
@@ -44,16 +52,15 @@ class Kafka(FlanIntegration):
             else:
                 servers = {'bootstrap.servers': self.config["bootstrap.servers"]}
                 self.producer = Producer(servers)
-        except KafkaException as e:
+        except Exception as e:
             self.logerr(str(e))
-            exit(1)
-        # Kafka topic cleaning
-        topic = 'Flan_%s-%s' % (self.version, socket.getfqdn().translate(str.maketrans(string.punctuation, '_' * len(string.punctuation))))
-        if 'topic' in self.config:
-            if self.config['topic']:
-                topic = self.config['topic'].strip().translate(str.maketrans(string.punctuation, '_'*len(string.punctuation)))
-        self.topic = topic[:255]
+            os._exit(1)
+        topic = self.producer.list_topics(self.topic)
+        if not topic:
+            self.logerr('Flan->%s integration error: %s is not an existing topic in the bootstrap servers provided' % (self.name, self.topic))
+            os._exit(1)
 
+    @exit_after(10)
     def send(self, data):
         try:
             self.producer.poll(0)
@@ -62,10 +69,11 @@ class Kafka(FlanIntegration):
                 self.producer.produce(self.topic, value=jsondata, key=jsondata, callback=self.kafkacallback)
             else:
                 self.producer.produce(self.topic, data.encode('utf-8'), callback=self.kafkacallback)
-        except KafkaException as e:
+        except Exception as e:
             self.logerr(str(e))
         return
 
+    @exit_after(10)
     def kafkacallback(self, err, msg):
         if err is not None:
             self.logerr(err)
@@ -79,6 +87,7 @@ class Kafka(FlanIntegration):
         else:
             return True
 
+    @exit_after(10)
     def close(self):
         if self.producer:
             self.producer.flush()

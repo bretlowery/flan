@@ -23,7 +23,7 @@ class Splunk(FlanIntegration):
         except Exception as e:
             self.logerr('Flan->%s connection to %s:%s as user %s failed: %s' %
                           (self.name, self.config["host"], self.config["port"], self.config["username"], str(e)))
-            exit(1)
+            os._exit(1)
 
     def send(self, data):
         try:
@@ -34,7 +34,7 @@ class Splunk(FlanIntegration):
             if self.config["loglevel"] == "error":
                 self.logerr('Flan->%s delivery failed: %s' % (self.name, str(e)))
             if self.haltonerror:
-                exit(1)
+                os._exit(1)
         return
 
     @property

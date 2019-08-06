@@ -60,7 +60,8 @@ def error(msg):
         LOGGER.error(msg)
     else:
         print(msg, file=sys.stderr)
-    exit(1)
+        sys.stderr.flush()
+    os._exit(1)
 
 
 def profile_memory(meta):
@@ -113,12 +114,12 @@ def getconfig(yamlfile, root):
             configyaml = yaml.safe_load(config_file)
     except:
         error('%s was not found, is not readable, has insufficient read permissions, or is not a valid YAML file' % yamlfile)
-        exit(1)
+        os._exit(1)
     try:
         configdict = configyaml[root] if root else configyaml
     except:
         error('%s not found within %s' % (root, yamlfile))
-        exit(1)
+        os._exit(1)
     return configdict
 
 
@@ -134,7 +135,7 @@ def proxy(meta):
             pass
         if not enabled:
             error('%s integration is not enabled in %s' % (target, INTEGRATION_CONFIG_FILE))
-            exit(1)
+            os._exit(1)
     import importlib
     # Load "flan.integrations.kafka.Kafka", "flan.integrations.pulsar.Pulsar", etc.
     IntegrationClass = getattr(importlib.import_module("integrations.%s" % target), target.capitalize())
@@ -1362,7 +1363,7 @@ class FlanService(Service):
                     options.vars()[setting] = settings[setting]
                 except:
                     error('unrecognized setting "%s" in %s' % (setting, SERVICE_CONFIG_FILE))
-                    exit(1)
+                    os._exit(1)
         info("%s loaded successfully" % SERVICE_CONFIG_FILE)
         # make flan
         make_flan(options, servicemode=True)
@@ -1403,7 +1404,7 @@ def main():
             service.show_status()
     else:
         interactiveMode()
-    exit(0)
+    os._exit(0)
 
 
 if __name__ == "__main__":
