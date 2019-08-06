@@ -1,7 +1,7 @@
 import os
 import resource
 
-__VERSION__ = "0.0.26"
+__VERSION__ = "0.0.27"
 
 R_MAX = 100000000
 R_DEFAULT_NOSTREAMING = 10000

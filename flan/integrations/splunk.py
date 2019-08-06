@@ -1,4 +1,4 @@
-from flanintegration import FlanIntegration
+from flanintegration import FlanIntegration, timeout_after
 import splunklib.client as client
 import socket
 import os
@@ -10,6 +10,7 @@ class Splunk(FlanIntegration):
         name = self.__class__.__name__
         super().__init__(name, meta, config)
 
+    @timeout_after(10)
     def prepare(self):
         try:
             self.service = client.connect(
@@ -27,6 +28,7 @@ class Splunk(FlanIntegration):
                           (self.name, self.config["host"], self.config["port"], self.config["username"], str(e)))
             os._exit(1)
 
+    @timeout_after(10)
     def send(self, data):
         try:
             self.socket.send(data.encode('utf-8'))
@@ -40,6 +42,7 @@ class Splunk(FlanIntegration):
     def closed(self):
         return False
 
+    @timeout_after(10)
     def close(self):
         try:
             self.socket.close()

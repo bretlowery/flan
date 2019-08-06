@@ -323,7 +323,7 @@ class MetaManager:
         # --nouatag
         self.excludeuatag = options.excludeuatag
         # -o
-        self.streamtarget = self._onein(options.streamtarget, ["none", "stdout", "kafka", "splunk"], "none")
+        self.streamtarget = self._onein(options.streamtarget, ["none", "stdout", "kafka", "splunk", "activemq"], "none")
         if self.streaming and not self.streamtarget:
             error("-o must specify a valid supported streaming target choice (for example, 'stdout') if -c is also specified.")
         if self.servicemode and self.streaming and self.streamtarget == "stdout":

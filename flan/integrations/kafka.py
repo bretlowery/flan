@@ -14,7 +14,7 @@
 #
 # More info here: https://github.com/edenhill/librdkafka/wiki/Broker-version-compatibility
 #
-from flanintegration import FlanIntegration, exit_after
+from flanintegration import FlanIntegration, timeout_after
 from confluent_kafka import Producer, KafkaException
 import socket
 import string
@@ -35,7 +35,7 @@ class Kafka(FlanIntegration):
         self.name = self.__class__.__name__
         super().__init__(self.name, meta, config)
 
-    @exit_after(10)
+    @timeout_after(10)
     def prepare(self):
         # Kafka topic cleaning
         topic = 'Flan_%s-%s' % (self.version, socket.getfqdn().translate(str.maketrans(string.punctuation, '_' * len(string.punctuation))))
@@ -61,7 +61,7 @@ class Kafka(FlanIntegration):
             self.logerr('Flan->%s integration error: %s is not an existing topic in the bootstrap servers provided' % (self.name, self.topic))
             os._exit(1)
 
-    @exit_after(10)
+    @timeout_after(10)
     def send(self, data):
         try:
             self.producer.poll(0)
@@ -75,7 +75,7 @@ class Kafka(FlanIntegration):
             pass
         return
 
-    @exit_after(10)
+    @timeout_after(10)
     def kafkacallback(self, err, msg):
         if err is not None:
             self.logerr(err)
@@ -89,7 +89,7 @@ class Kafka(FlanIntegration):
         else:
             return True
 
-    @exit_after(10)
+    @timeout_after(10)
     def close(self):
         if self.producer:
             self.producer.flush()

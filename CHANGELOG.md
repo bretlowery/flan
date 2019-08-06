@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## v0.0.27 "Trio->Live"
+ActiveMQ, Amazon MQ, other STOMP-compliant queue integration
+
 ## v0.0.26 "Trio 99->00"
 Stable Splunk and Kafka integrations
 
