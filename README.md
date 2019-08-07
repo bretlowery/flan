@@ -19,7 +19,7 @@ FLAN is a Python 3.x utility that creates one or more fake Apache or NGINX acces
 --------------
 ### Supported Output Destinations
   * Write/stream to stdout<br>
-  * Write to ncompressed files in the standard access.log.N format<br>
+  * Write to uncompressed files in the standard access.log.N format<br>
   * Write to gzip files in the standard access.log.N.gz format<br>
   * Splunk via the Enterprise API or Universal Forwarder (text or JSON)<br>
   * Kafka (text, JSON or Avro)<br>
