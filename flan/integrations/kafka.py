@@ -35,7 +35,7 @@ class Kafka(FlanIntegration):
         self.name = self.__class__.__name__
         super().__init__(self.name, meta, config)
 
-    @timeout_after(10)
+    @timeout_after(30)
     def prepare(self):
         self.topic = self.defaulttopic
         try:
@@ -51,10 +51,11 @@ class Kafka(FlanIntegration):
         except Exception as e:
             self.logerr(str(e))
             os._exit(1)
-        topic = self.producer.list_topics(self.topic)
-        if not topic:
-            self.logerr('Flan->%s integration error: %s is not an existing topic in the bootstrap servers provided' % (self.name, self.topic))
-            os._exit(1)
+        if self.topic_must_exist:
+            topic = self.producer.list_topics(self.topic)
+            if not topic:
+                self.logerr('Flan->%s integration error: %s is not an existing topic in the bootstrap servers provided' % (self.name, self.topic))
+                os._exit(1)
 
     @timeout_after(10)
     def send(self, data):

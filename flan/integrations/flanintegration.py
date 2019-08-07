@@ -54,6 +54,7 @@ class FlanIntegration:
             else "none"
         self.haltonerror = istruthy(self.config["haltonerror"])
         self.version = settings.__VERSION__
+        self.topic_must_exist = istruthy(self.config["topic_must_exist"])
         self.prepare()
         self.writer = self.FlanIntegrationWriter(self)
 
