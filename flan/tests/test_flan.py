@@ -4,6 +4,7 @@ from unittest import TestCase, skip
 import inspect
 from dateutil import parser as dtparser
 import collections
+from time import sleep
 
 testpath = os.path.dirname(__file__)
 testtemplate1 = os.path.join(testpath, '99good1bad.test.access.log')
@@ -478,22 +479,40 @@ class FlanTestCases(TestCase):
         self.assertTrue(len(distinctips) > 1)
         self.assertTrue(line['request'] in ['POST /a.html HTTP/1.0', 'POST /b.html HTTP/1.0', 'POST /c.html HTTP/1.0'] for line in lines)
 
-    # def test_1223_kafka_integration(self):
-    #     """
-    #     Kafka integration test
-    #     """
-    #     # stop zookeeper & kafka if they are running
-    #     os.system("kafka-server-stop")
-    #     os.system("zookeeper-server-stop")
-    #     # start zookeeper
-    #     os.system("zookeeper-server-start -daemon /usr/local/etc/kafka/zookeeper.properties")
-    #     # start kafka
-    #     os.system("kafka-server-start -daemon /usr/local/etc/kafka/server.properties")
-    #     # test
-    #     self.chk4success("-o kafka %s" % testtemplate1)
-    #     # stop zookeeper & kafka if they are running
-    #     os.system("kafka-server-stop")
-    #     os.system("zookeeper-server-stop")
+    def test_1230_kafka_integration(self):
+        """
+        Kafka integration test
+        """
+        wasenabled = False
+        isenabled = utils.getyaml("kafka", "enabled")
+        if isenabled:
+            wasenabled = True
+        else:
+            isenabled = utils.setyaml("kafka", "enabled", True)
+        if isenabled:
+            utils.setyaml("kafka", "loginfo", True)
+            # stop zookeeper & kafka if they are running
+            os.system("kafka-server-stop")
+            os.system("zookeeper-server-stop")
+            # start zookeeper
+            os.system("zookeeper-server-start -daemon /usr/local/etc/kafka/zookeeper.properties")
+            sleep(10)
+            # start kafka
+            os.system("kafka-server-start -daemon /usr/local/etc/kafka/server.properties")
+            sleep(10)
+            # test
+            self.chk4success("-o kafka %s" % testtemplate1)
+            # stop zookeeper & kafka if they are running
+            os.system("kafka-server-stop")
+            os.system("zookeeper-server-stop")
+            utils.setyaml("kafka", "loginfo", False)
+        else:
+            self.assertTrue(isenabled)  # this line will always fail, as intended here
+        if not wasenabled:
+            isenabled = utils.setyaml("kafka", "enabled", False)
+            if isenabled:
+                self.assertFalse(isenabled)  # this line will always fail, as intended here
+
 
     #
     # tear down

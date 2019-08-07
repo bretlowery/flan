@@ -1,5 +1,9 @@
 from abc import ABCMeta, abstractmethod
-from flan import istruthy, error, info
+try:
+    from flan import istruthy, error, info
+except:
+    from flan.flan import istruthy, error, info
+    pass
 import settings
 import threading
 import _thread as thread

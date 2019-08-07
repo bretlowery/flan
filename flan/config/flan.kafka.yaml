@@ -1,11 +1,10 @@
 kafka:
-    enabled: False
-    producer:
-        loginfo: False
-        logerrors: True
-        haltonerror: True
-        bootstrap.servers: localhost:9092
-        topic_must_exist: False
-#       topic: mytopic
-#       avro.schema.registry.url: url:port
-
+  enabled: true
+  producer:
+    bootstrap.servers: localhost:9092
+redacted
+redacted
+redacted
+    topic_must_exist: false
+#   topic: mytopic
+#   avro.schema.registry.url: url:port
