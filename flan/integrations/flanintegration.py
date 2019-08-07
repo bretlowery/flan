@@ -4,7 +4,8 @@ import settings
 import threading
 import _thread as thread
 import os
-
+import socket
+import string
 
 def _timeout(integrationname):
     error('Flan->%s integration timed out' % integrationname)
@@ -89,3 +90,10 @@ class FlanIntegration:
             info(msg)
         return
 
+    @property
+    def defaulttopic(self):
+        topic = 'Flan_%s-%s' % (self.version, socket.getfqdn().translate(str.maketrans(string.punctuation, '_' * len(string.punctuation))))
+        if 'topic' in self.config:
+            if self.config['topic']:
+                topic = self.config['topic'].strip().translate(str.maketrans(string.punctuation, '_' * len(string.punctuation)))
+        return topic[:255]

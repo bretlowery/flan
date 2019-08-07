@@ -37,12 +37,7 @@ class Kafka(FlanIntegration):
 
     @timeout_after(10)
     def prepare(self):
-        # Kafka topic cleaning
-        topic = 'Flan_%s-%s' % (self.version, socket.getfqdn().translate(str.maketrans(string.punctuation, '_' * len(string.punctuation))))
-        if 'topic' in self.config:
-            if self.config['topic']:
-                topic = self.config['topic'].strip().translate(str.maketrans(string.punctuation, '_' * len(string.punctuation)))
-        self.topic = topic[:255]
+        self.topic = self.defaulttopic
         try:
             if self.meta.outputstyle == "avro":
                 servers = {

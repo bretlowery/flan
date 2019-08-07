@@ -14,3 +14,6 @@ confluent_kafka>=1.1.0
 ### optional STOMP client for ActiveMQ, Amazon MQ, RabbitMQ, stompserver, Apollo...
 stomp.py>=4.1.22
 #
+### optional FluentD client
+fluent-logger>=0.9.3
+#

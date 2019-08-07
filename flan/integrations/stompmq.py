@@ -45,7 +45,8 @@ class StompMQ(FlanIntegration):
             self.mq.connect(self.config['username'],self.config['password'], wait=True)
             self.mq.subscribe(destination=self.config['destination'], id=str(self.config['id']), ack='auto')
         except Exception as e:
-            self.logerr(str(e))
+            self.logerr('Flan->%s connection to %s:%s as user %s failed: %s' %
+                        (self.name, self.config["host"], self.config["port"], self.config['username'], str(e)))
             os._exit(1)
 
     @timeout_after(10)

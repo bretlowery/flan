@@ -1,0 +1,11 @@
+fluentd:
+    enabled: False
+    producer:
+        loginfo: True
+        logerrors: True
+        haltonerror: True
+        app: appname
+    redacted
+    redacted
+        nanosecond_precision: False
+        topic: flan
