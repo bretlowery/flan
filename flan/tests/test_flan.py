@@ -206,6 +206,13 @@ class FlanTestCases(TestCase):
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
         self.chk4success("-o stdout %s" % testtemplate1)
 
+    def test_1015_botsflag(self):
+        """
+        Test read crawler list from remote source via '-b all'
+        """
+        utils.newtest(inspect.currentframe().f_code.co_name.upper())
+        self.chk4success("-o stdout -b all %s" % testtemplate1)
+
     def test_1020_abort(self):
         """
         Test -a flag, should abort on line #3 in the test file
