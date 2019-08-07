@@ -77,9 +77,9 @@ class Kafka(FlanIntegration):
 
     @timeout_after(10)
     def kafkacallback(self, err, msg):
-        if err is not None:
+        if err is not None and self.loglevel == "errors":
             self.logerr(err)
-        elif self.loglevel == "info":
+        elif msg is not None and self.loglevel == "info":
             self.loginfo('Flan->%s: sent on topic "%s" [%s]' % (self.name, msg.topic(), msg.partition()))
 
     @property

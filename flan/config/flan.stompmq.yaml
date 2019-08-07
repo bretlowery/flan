@@ -1,0 +1,17 @@
+stomp:
+    enabled: True
+    producer:
+        loginfo: False
+        logerrors: True
+        haltonerror: True
+    redacted
+        port:  61613
+        ssl_ca_certs: none
+        ssl_cert_file: none
+        ssl_cert_validator: none
+        ssl_key_file: none
+        ssl_version: none
+    redacted username
+    redacted password
+        destination: /queue/flan
+        id: 1
