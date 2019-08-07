@@ -1,5 +1,5 @@
 kafka:
-    enabled: True
+    enabled: False
     producer:
         loginfo: False
         logerrors: True
