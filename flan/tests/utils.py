@@ -122,21 +122,26 @@ class Utils:
 
     @staticmethod
     def _getsetyaml(integrationname, settingname, newvalue=None):
+
+        def _reloadyaml(_icf, _ic=None):
+            if _ic is not None:
+                with open(_icf, "w") as _f:
+                    yaml.safe_dump(_ic, _f, default_flow_style=False)
+            with open(_icf, "r") as _f:
+                _ic = yaml.safe_load(_f)
+            return _ic
+
         integrationname = integrationname.strip().lower()
         settingname = settingname.strip().lower()
         icf = os.path.join(os.path.dirname(__file__), '../config/flan.%s.yaml' % integrationname)
-        with open(icf, "r") as f:
-            ic = yaml.safe_load(f)
+        ic = _reloadyaml(icf)
         if settingname in ic[integrationname]["producer"]:
             if newvalue is not None:
                 if isinstance(newvalue, str):
                     ic[integrationname]["producer"][settingname] = newvalue.strip()
                 else:
                     ic[integrationname]["producer"][settingname] = newvalue
-                with open(icf, "w") as f:
-                    yaml.safe_dump(ic, f, default_flow_style=False)
-                with open(icf, "r") as f:
-                    ic = yaml.safe_load(f)
+                ic = _reloadyaml(icf, ic)
             return ic[integrationname]["producer"][settingname]
         elif settingname in ic[integrationname]:
             if newvalue is not None:
@@ -144,10 +149,7 @@ class Utils:
                     ic[integrationname][settingname] = newvalue.strip()
                 else:
                     ic[integrationname][settingname] = newvalue
-                with open(icf, "w") as f:
-                    yaml.safe_dump(ic, f, default_flow_style=False)
-                with open(icf, "r") as f:
-                    ic = yaml.safe_load(f)
+                ic = _reloadyaml(icf, ic)
             return ic[integrationname][settingname]
 
     def getyaml(self, integrationname, settingname):
