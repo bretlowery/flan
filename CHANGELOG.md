@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## v0.0.29 "One Quiet Night"
+FluentD integration
+
+
 ## v0.0.28 "Upojenie"
 Support SSL connections for Stomp-compliant MQs 
 

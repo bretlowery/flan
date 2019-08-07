@@ -29,6 +29,7 @@ from urllib import request
 
 from settings import __VERSION__, \
     DEFAULT_FORMAT, \
+    INTEGRATIONS, \
     INTEGRATION_CONFIG_FILE, \
     IPMAP, \
     IPMAP2, \
@@ -323,7 +324,7 @@ class MetaManager:
         # --nouatag
         self.excludeuatag = options.excludeuatag
         # -o
-        self.streamtarget = self._onein(options.streamtarget, ["none", "stdout", "kafka", "splunk", "stompmq"], "none")
+        self.streamtarget = self._onein(options.streamtarget, INTEGRATIONS, "none")
         if self.streaming and not self.streamtarget:
             error("-o must specify a valid supported streaming target choice (for example, 'stdout') if -c is also specified.")
         if self.servicemode and self.streaming and self.streamtarget == "stdout":
