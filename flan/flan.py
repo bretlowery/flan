@@ -586,8 +586,10 @@ class DataManager:
     def _load_bot_json():
         blist = []
         try:
-            url = 'https://raw.githubusercontent.com/monperrus/crawler-user-agents/master/crawler-user-agents.json'
-            uajson = json.load(request.urlopen(url).read())
+            loc = 'https://raw.githubusercontent.com/monperrus/crawler-user-agents/master/crawler-user-agents.json'
+            url = request.urlopen(loc)
+            raw = url.read()
+            uajson = json.loads(raw)
         except:
             uajson = None
             pass
