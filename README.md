@@ -42,6 +42,11 @@ I looked for solutions but they lacked. 90% generated random data, including inv
 
 FLAN generates up to 1K test access.log files of up to 1M records each, per run. On my Mac, it can generate 200K records in about 30 seconds in verbose mode with basic settings so it's way way fast on any ol' EC2 or GCE server including the free tier stuff.
 
+--------------
+### But What's A Real Use Case For This Thing?
+
+Need to test Splunk's ML features on real data to see what real patterns it finds, but do it in a restricted POC lab environment while preserving user anonymity AND session semantics? Flan to the rescue!
+
 ---------------------------------------------------------------
 ### Flan generates log files semantically similar to production
 To ensure your fake logs look as semantically real as your production ones, it reads one or more "template" access.logs from a real production system that you provide (hereinafter referred to as the "template logs"). It doesn't matter how many records the template logs contain, but the longer it/they are, the more realistic your generated fake logs will be. If you do NOT specify session preservation with the -p flag (described below), you can specify the number of files and records to generate, and your template log(s) can be bigger or smaller than your generated log file(s). If you specify session preservation, your generated log files will contain the same number of records as the total number of records contained in your template log file(s).
