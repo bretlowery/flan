@@ -1,0 +1,13 @@
+activemq:
+    enabled: False
+    producer:
+        loginfo: False
+        logerrors: True
+        haltonerror: True
+        host: activemqhostname
+        port:  activemqportnumber
+        version: 1.1
+        broker: activemqbrokername
+    redacted username
+    redacted password
+#       destination: destinationname

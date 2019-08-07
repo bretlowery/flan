@@ -5,11 +5,13 @@ import threading
 import _thread as thread
 import os
 
+
 def _timeout(integrationname):
     error('Flan->%s integration timed out' % integrationname)
     thread.interrupt_main()  # raises KeyboardInterrupt
 
-def exit_after(s):
+
+def timeout_after(s):
     """
     Use as decorator to exit process if function takes longer than s seconds
     """
