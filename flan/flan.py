@@ -29,8 +29,9 @@ from urllib import request
 
 from settings import __VERSION__, \
     DEFAULT_FORMAT, \
-    INTEGRATIONS, \
-    INTEGRATION_CONFIG_FILE, \
+    EXPORTS, \
+    EXPORT_CONFIG_FILE, \
+    IMPORTS, \
     IPMAP, \
     IPMAP2, \
     JSON_FORMAT, \
@@ -124,62 +125,51 @@ def getconfig(yamlfile, root):
     return configdict
 
 
-def proxy(meta):
+def importer(meta):
+    source = meta.inputsource
+    importconfig = getconfig(IMPORT_CONFIG_FILE, source)
+    try:
+        enabled = istruthy(importconfig["import"]["enabled"])
+    except Exception as e:
+        enabled = False
+        pass
+    if not enabled:
+        error('%s imports are not enabled in %s' % (source, IMPORT_CONFIG_FILE))
+        os._exit(1)
+    import importlib
+    # Load "flan.imports.kafka.Kafka", "flan.imports.pulsar.Pulsar", etc.
+    ImportClass = getattr(importlib.import_module("imports.%s" % source), source.capitalize())
+    # Instantiate the class. This connects, authenticates, etc to the source, and performs the actual template data import.
+    proxy = ImportClass(meta, importconfig)
+    return proxy
+
+
+def exporter(meta):
     target = meta.streamtarget
-    integrationconfig = None
+    exportconfig = None
     if target != "stdout":
-        integrationconfig = getconfig(INTEGRATION_CONFIG_FILE, target)
+        exportconfig = getconfig(EXPORT_CONFIG_FILE, target)
         try:
-            enabled = istruthy(integrationconfig["enabled"])
+            enabled = istruthy(exportconfig["export"]["enabled"])
         except Exception as e:
             enabled = False
             pass
         if not enabled:
-            error('%s integration is not enabled in %s' % (target, INTEGRATION_CONFIG_FILE))
+            error('%s exports are not enabled in %s' % (target, EXPORT_CONFIG_FILE))
             os._exit(1)
     import importlib
-    # Load "flan.integrations.kafka.Kafka", "flan.integrations.pulsar.Pulsar", etc.
-    IntegrationClass = getattr(importlib.import_module("integrations.%s" % target), target.capitalize())
+    # Load "flan.exports.kafka.Kafka", "flan.exports.pulsar.Pulsar", etc.
+    ExportClass = getattr(importlib.import_module("exports.%s" % target), target.capitalize())
     # Instantiate the class. This connects, authenticates, etc to the target sink & handles all prep up to the actual write.
-    proxy = IntegrationClass(meta, integrationconfig)
+    proxy = ExportClass(meta, exportconfig)
     return proxy
 
 
 class MetaManager:
 
-    def _load_templates(self, options):
-        self.contents = []
-        self.templatelogfiles = None
-        if not options.replay or not self.replaylogfile_exists():
-            try:
-                # get spec of template log file(s)
-                self.templatelogfiles = options.templatelogfiles.strip()
-                # get each template log file's file creation date
-                fd = {}
-                for file in glob.glob(self.templatelogfiles):
-                    cd = os.path.getctime(file)
-                    fd[cd] = file
-                # order the list of template log files by creation date asc (oldest first)
-                fod = collections.OrderedDict(sorted(fd.items()))
-                for cd, file in fod.items():
-                    if file[3:].lower() == ".gz" or file[5:].lower() == ".gzip":
-                        with gzip.open(file, "rb") as fp:
-                            currentfile = fp.readlines()
-                            fp.close()
-                    else:
-                        with open(file, "r") as fp:
-                            currentfile = fp.readlines()
-                            fp.close()
-                    self.contents = self.contents + [x.strip() for x in currentfile]
-                # do something with file
-            except IOError as e:
-                error("ERROR trying to read the template log file: %s", str(e))
-            if not self.contents:
-                error("the template access log provided is empty.")
-
     def _verify_outputdir(self, options):
         output = None
-        if options.streamtarget == "none":
+        if self.streamtarget == "none":
             if not options.outputdir:
                 error("no output directory was specified.")
             try:
@@ -229,10 +219,7 @@ class MetaManager:
             return default
         choice = choice.strip().lower()
         if choice in choicelist:
-            if choice == "none":
-                return None
-            else:
-                return choice
+            return choice
         else:
             return default
 
@@ -240,13 +227,9 @@ class MetaManager:
     def _oneof(choice, choicedict, default=None):
         return choicedict.get(choice.strip().lower(), default)
 
-    @staticmethod
-    def replaylogfile_exists():
-        return os.path.exists(REPLAY_LOG_FILE)
-
     def emitmeta(self):
         if self.meta:
-            if self.streamtarget:
+            if self.streamtarget != "none":
                 import socket
                 hn = socket.gethostname()
                 fqdn = socket.getfqdn()
@@ -277,31 +260,13 @@ class MetaManager:
         return
 
     def __init__(self, options, servicemode=False):
-        global INTEGRATION_CONFIG_FILE
+        global IMPORT_CONFIG_FILE, EXPORT_CONFIG_FILE
 
         if options.streamtarget != "none":
             options.quiet = True
 
         if not options.quiet:
             print("FLAN v", __VERSION__)
-
-        try:
-            assert (options.templatelogfiles and (options.outputdir or options.streamtarget))
-            assert (len(options.templatelogfiles) > 0 and (options.outputdir or options.streamtarget))
-        except:
-            error("please provide a/an example logfile(s) to read, and either a destination output directory to write access logs to OR specify stream output with -o.")
-
-        #
-        # handle arg 0: load either the template log file(s) or the replay log
-        #
-
-        self._load_templates(options)
-
-        #
-        # handle arg 1: verify output location
-        #
-
-        self._verify_outputdir(options)
 
         #
         # verify inputs
@@ -323,14 +288,31 @@ class MetaManager:
         self.timezone = options.timezone
         # --nouatag
         self.excludeuatag = options.excludeuatag
+        # -i
+        self.inputsource = self._onein(options.inputsource, IMPORTS, "files")
+        IMPORT_CONFIG_FILE = os.path.join(os.path.dirname(__file__), 'config/flan.%s.yaml' % self.inputsource)
         # -o
-        self.streamtarget = self._onein(options.streamtarget, INTEGRATIONS, "none")
-        if self.streaming and not self.streamtarget:
+        self.streamtarget = self._onein(options.streamtarget, EXPORTS, "none")
+        if self.streaming and self.streamtarget == "none":
             error("-o must specify a valid supported streaming target choice (for example, 'stdout') if -c is also specified.")
         if self.servicemode and self.streaming and self.streamtarget == "stdout":
             error("stdout streaming is not supported in service mode.")
         if self.streamtarget not in ["none", "stdout"]:
-            INTEGRATION_CONFIG_FILE = os.path.join(os.path.dirname(__file__), 'config/flan.%s.yaml' % self.streamtarget)
+            EXPORT_CONFIG_FILE = os.path.join(os.path.dirname(__file__), 'config/flan.%s.yaml' % self.streamtarget)
+
+        if self.inputsource == "files":
+            try:
+                assert (options.templatelogfiles and (options.outputdir or options.streamtarget))
+            except:
+                error("please provide a/an example logfile(s) to read, and either a destination output directory to write access logs to OR specify stream output with -o/-c.")
+            self.templatelogfiles = options.templatelogfiles.strip()
+        else:
+            try:
+                assert (options.outputdir or options.streamtarget)
+            except:
+                error("please provide either a destination output directory to write access logs to OR specify stream output with -o/-c.")
+            self.templatelogfiles = None
+
         # -y
         self.replay = options.replay
         # -k
@@ -343,7 +325,7 @@ class MetaManager:
         if options.files:
             f = options.files
             f = 0 if f < 1 or f > 1000 else f
-        if f == 0 and not self.streamtarget:
+        if f == 0 and self.streamtarget == "none":
             error("the number of files to generate (-n) must be between 1 and 1000.")
         self.files = f
 
@@ -353,8 +335,8 @@ class MetaManager:
             g = options.gzipindex
             if g > self.files or g < 0:
                 error("the gzip index must be between 0 and %d." % self.files)
-            if g > 0 and self.streamtarget:
-                error("-g cannot be specified if using stream output (-o and/or -c).")
+            if g > 0 and self.streamtarget != 'none':
+                error("-g cannot be specified if using stream output or non-file input. Check your -i, -o and/or -c settings.")
         self.gzipindex = g
 
         # -r
@@ -499,7 +481,7 @@ class MetaManager:
                 error("the regex string provided (-x '%s') is not a valid regex. See https://www.google.com/search?q=python+regex+cheat+sheet for help." % chk)
         self.customregex = regx
 
-        # -i
+        # -f
         ipmatches = []
         if options.ipfilter:
             ipmatch = None
@@ -508,7 +490,7 @@ class MetaManager:
                 try:
                     ipmatch = ipaddress.ip_network(chk) if "/" in chk else ipaddress.ip_address(chk)
                 except:
-                    error("one or more values in the -i parameter value provided ('%s') is neither a valid IP address or network (CIDR)." % chk)
+                    error("one or more values in the -f parameter value provided ('%s') is neither a valid IP address or network (CIDR)." % chk)
                 ipmatches.append(ipmatch)
         self.ipfilter = ipmatches
 
@@ -530,11 +512,26 @@ class MetaManager:
             else:
                 info("NOTE: -a not specified; unparseable log entries will be skipped.")
 
-        if not options.overwrite and not options.streamtarget:
+        if not options.overwrite and not options.streamtarget != "none":
             if self.output_exists():
                 error("one or more target file(s) exist, and --overwrite was not specified.")
-        if not options.quiet and not options.replay:
-            info("%d lines read from %s." % (len(self.contents), options.templatelogfiles.strip()))
+
+        #
+        # handle arg 0: load either the template log file(s), the replay log, the Splunk source, etc
+        #
+
+        self.importer = importer(self)
+        if not options.quiet:
+            if options.replay:
+                info("%d lines read from %s." % (len(self.importer.contents), options.templatelogfiles.strip()))
+            else:
+                info("%d lines read from replay log." % (len(self.importer.contents)))
+
+        #
+        # handle arg 1: verify output location
+        #
+
+        self._verify_outputdir(options)
 
         return
 
@@ -611,7 +608,8 @@ class DataManager:
             pass
         return blist
 
-    def _load_replay_log(self):
+    @staticmethod
+    def _load_replay_log():
         replaydata = []
         try:
             for file in glob.glob(REPLAY_LOG_FILE):
@@ -623,7 +621,8 @@ class DataManager:
             pass
         return replaydata
 
-    def _save_replay_log(self, replaydata, meta):
+    @staticmethod
+    def _save_replay_log(replaydata, meta):
         try:
             with open(REPLAY_LOG_FILE, "wb+") as rl:
                 pickle.dump(replaydata, rl)
@@ -632,7 +631,8 @@ class DataManager:
             error("unable to save %s: %s" % (REPLAY_LOG_FILE, str(e)))
         return
 
-    def _get_loglineregex(self, meta):
+    @staticmethod
+    def _get_loglineregex(meta):
         patterns = {}
         fields = json.loads(SUPPORTED_FIELDS)
         for field in fields:
@@ -775,7 +775,7 @@ class DataManager:
 
             self.lineregex = self._get_loglineregex(meta)
 
-            for entry in meta.contents:
+            for entry in meta.importer.contents:
 
                 self.totread += 1
 
@@ -950,7 +950,6 @@ def make_flan(options, servicemode=False):
             info("NOTE: -p (preserve sessions) specified. Matching template log, setting -r (the number of records per file) = %d * %d files = "
                   "%d total records will be generated." % (meta.records, meta.files, meta.records * meta.files))
 
-    meta.streamtarget = "none" if meta.streamtarget is None else meta.streamtarget
     currentfile = meta.files
     uas = None
     timestamp = None
@@ -991,7 +990,7 @@ def make_flan(options, servicemode=False):
                     if not meta.quiet:
                         info('Beginning write of fake entries to log %s.' % log.name)
                 else:
-                    targetproxy = proxy(meta)
+                    targetproxy = exporter(meta)
                     log = targetproxy.target
                 # get 1st entry in the time distribution
                 timeslot = _next(time_distribution)
@@ -1134,6 +1133,14 @@ def interactiveMode():
                       action="store",
                       dest="end_dt",
                       help='Latest datetime to provide in the generated log files. Defaults to midnight tomorrow.')
+    argz.add_argument("-f", "--ipfilter",
+                      action="store",
+                      dest="ipfilter",
+                      default="",
+                      help="If provided, this should specify one or more optional IP(s) and/or CIDR range(s) in quotes that all entries in the template log file must "
+                           "match in order to be used for output log generation. Only lines containing an IP that matches one or more of these will "
+                           "be used. Separate one or more IPs or CIDRs here by commas; for example, '-f \"123.4.5.6,145.0.0.0/16,2001:db8::/48\"'. "
+                           "If not provided, use all otherwise valid template log lines in generating the output logs.")
     argz.add_argument("-g", "--gzip",
                       action="store",
                       dest="gzipindex",
@@ -1143,14 +1150,14 @@ def interactiveMode():
                            'log files. It must be between 0 and the -n value provided. For example, "-n 5 -g 3" generates log files called '
                            '"access.log", "access.log.1", "access.log.2.gz", "access.log.3.gz", "access.log.4.gz": 5 files, the last 3 of '
                            'which are gzipped. Default=0, no gzipping occurs.')
-    argz.add_argument("-i", "--ipfilter",
+    argz.add_argument("-i", "--inputsource",
                       action="store",
-                      dest="ipfilter",
-                      default="",
-                      help="If provided, this should specify one or more optional IP(s) and/or CIDR range(s) in quotes that all entries in the template log file must "
-                           "match in order to be used for output log generation. Only lines containing an IP that matches one or more of these will "
-                           "be used. Separate one or more IPs or CIDRs here by commas; for example, '--ipfilter \"123.4.5.6,145.0.0.0/16,2001:db8::/48\"'. "
-                           "If not provided, use all otherwise valid template log lines in generating the output logs.")
+                      dest="inputsource",
+                      default="files",
+                      help='Source of input template logs/data, one of:<br><br>'
+                           'files=one or more template log files<br><br>'
+                           'splunk=a Splunk Enterprise source and query as defined in the flan.splunk.yaml file. '
+                           'Default=files.')
     argz.add_argument("--inputformat",
                       action="store",
                       dest="inputformat",

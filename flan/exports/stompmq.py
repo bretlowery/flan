@@ -1,5 +1,5 @@
 
-from flanintegration import FlanIntegration, timeout_after
+from flanexport import FlanExport, timeout_after
 import os
 
 try:
@@ -25,7 +25,7 @@ class MQCallback(stomp.ConnectionListener):
 
 
 # for ActiveMQ, Amazon MQ, Apollo, stompserver, RabbitMQ, or any other STOMP-1.x compliant MQ system
-class StompMQ(FlanIntegration):
+class StompMQ(FlanExport):
 
     def __init__(self, meta, config):
         self.name = self.__class__.__name__

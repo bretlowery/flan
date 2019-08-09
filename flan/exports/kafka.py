@@ -14,7 +14,7 @@
 #
 # More info here: https://github.com/edenhill/librdkafka/wiki/Broker-version-compatibility
 #
-from flanintegration import FlanIntegration, timeout_after
+from flanexport import FlanExport, timeout_after
 from confluent_kafka import Producer, KafkaException
 import socket
 import string
@@ -29,7 +29,7 @@ except:
     pass
 
 
-class Kafka(FlanIntegration):
+class Kafka(FlanExport):
 
     def __init__(self, meta, config):
         self.name = self.__class__.__name__
@@ -54,7 +54,7 @@ class Kafka(FlanIntegration):
         if self.topic_must_exist:
             topic = self.producer.list_topics(self.topic)
             if not topic:
-                self.logerr('Flan->%s integration error: %s is not an existing topic in the bootstrap servers provided' % (self.name, self.topic))
+                self.logerr('Flan->%s exports error: %s is not an existing topic in the bootstrap servers provided' % (self.name, self.topic))
                 os._exit(1)
 
     @timeout_after(10)

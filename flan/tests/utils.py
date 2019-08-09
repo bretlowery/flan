@@ -121,7 +121,7 @@ class Utils:
         return hash_md5(str(item).encode())
 
     @staticmethod
-    def _getsetyaml(integrationname, settingname, newvalue=None):
+    def _getsetyaml(exportname, importorexport, settingname, newvalue=None):
 
         def _reloadyaml(_icf, _ic=None):
             if _ic is not None:
@@ -131,29 +131,29 @@ class Utils:
                 _ic = yaml.safe_load(_f)
             return _ic
 
-        integrationname = integrationname.strip().lower()
+        exportname = exportname.strip().lower()
         settingname = settingname.strip().lower()
-        icf = os.path.join(os.path.dirname(__file__), '../config/flan.%s.yaml' % integrationname)
+        icf = os.path.join(os.path.dirname(__file__), '../config/flan.%s.yaml' % exportname)
         ic = _reloadyaml(icf)
-        if settingname in ic[integrationname]["producer"]:
+        if importorexport == "export" and settingname in ic[exportname]["export"]:
             if newvalue is not None:
                 if isinstance(newvalue, str):
-                    ic[integrationname]["producer"][settingname] = newvalue.strip()
+                    ic[exportname]["export"][settingname] = newvalue.strip()
                 else:
-                    ic[integrationname]["producer"][settingname] = newvalue
+                    ic[exportname]["export"][settingname] = newvalue
                 ic = _reloadyaml(icf, ic)
-            return ic[integrationname]["producer"][settingname]
-        elif settingname in ic[integrationname]:
+            return ic[exportname]["export"][settingname]
+        elif importorexport == "import" and settingname in ic[exportname]["import"]:
             if newvalue is not None:
                 if isinstance(newvalue, str):
-                    ic[integrationname][settingname] = newvalue.strip()
+                    ic[exportname]["import"][settingname] = newvalue.strip()
                 else:
-                    ic[integrationname][settingname] = newvalue
+                    ic[exportname]["import"][settingname] = newvalue
                 ic = _reloadyaml(icf, ic)
-            return ic[integrationname][settingname]
+            return ic[exportname]["import"][settingname]
 
-    def getyaml(self, integrationname, settingname):
-        return self._getsetyaml(integrationname, settingname, None)
+    def getyaml(self, exportname, importorexport, settingname):
+        return self._getsetyaml(exportname, importorexport, settingname, None)
 
-    def setyaml(self, integrationname, settingname, newvalue):
-        return self._getsetyaml(integrationname, settingname, newvalue)
+    def setyaml(self, exportname, importorexport, settingname, newvalue):
+        return self._getsetyaml(exportname, importorexport, settingname, newvalue)

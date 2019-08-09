@@ -1,4 +1,4 @@
-from flanintegration import FlanIntegration, timeout_after
+from flanexport import FlanExport, timeout_after
 import os
 import time
 import ast
@@ -10,7 +10,7 @@ except:
     pass
 
 
-class FluentD(FlanIntegration):
+class FluentD(FlanExport):
 
     def __init__(self, meta, config):
         name = self.__class__.__name__

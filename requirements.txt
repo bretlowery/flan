@@ -5,15 +5,18 @@ numpy>=1.16.4.0
 service>=0.6.0
 PyYAML>=5.1.2
 #
-### optional splunk sdk
-splunk-sdk>=1.6.6
-#
 ### optional kafka client
 confluent_kafka>=1.1.0
 #
-### optional STOMP client for ActiveMQ, Amazon MQ, RabbitMQ, stompserver, Apollo...
-stomp.py>=4.1.22
-#
 ### optional FluentD client
 fluent-logger>=0.9.3
+#
+### optional spark streaming client
+pyspark>=2.4.3
+#
+### optional splunk sdk
+splunk-sdk>=1.6.6
+#
+### optional STOMP client for ActiveMQ, Amazon MQ, RabbitMQ, stompserver, Apollo...
+stomp.py>=4.1.22
 #

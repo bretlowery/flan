@@ -1,10 +1,10 @@
-from flanintegration import FlanIntegration, timeout_after
+from flanexport import FlanExport, timeout_after
 import splunklib.client as client
 import socket
 import os
 
 
-class Splunk(FlanIntegration):
+class Splunk(FlanExport):
 
     def __init__(self, meta, config):
         name = self.__class__.__name__

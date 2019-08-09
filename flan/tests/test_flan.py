@@ -10,6 +10,8 @@ testpath = os.path.dirname(__file__)
 testtemplate1 = os.path.join(testpath, '99good1bad.test.access.log')
 testout = os.path.join(testpath, 'flanunittesttemp')
 testreplay = os.path.join(testpath, '../flan.replay')
+kafkahome = "/usr/local/etc/kafka"
+splunkhome = "/opt/splunk/splunk/bin"
 utils = Utils()
 
 
@@ -386,14 +388,14 @@ class FlanTestCases(TestCase):
 
     def test_1130_ipfilter(self):
         """
-        Test -i flag using example ip 188.143.232.240 in the test log file; see if it obfuscates to 188.143.232.[0-255]
+        Test -f flag using example ip 188.143.232.240 in the test log file; see if it obfuscates to 188.143.232.[0-255]
         Then ensure no other IP pattern other than 188.143.232.[0-255] appears
         """
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
-        self.chk4datacondition('-i "188.143.232.240" -o stdout %s' % testtemplate1,
+        self.chk4datacondition('-f "188.143.232.240" -o stdout %s' % testtemplate1,
                                "remote_addr", "like", "^188.143.232.(?<!\d)(?:[1-9]?\d|1\d\d|2(?:[0-4]\d|5[0-5]))(?!\d)",
                                startonline=None, endonline=None)
-        self.chk4datacondition('-i "188.143.232.240" -o stdout %s' % testtemplate1,
+        self.chk4datacondition('-f "188.143.232.240" -o stdout %s' % testtemplate1,
                                "remote_addr", "notlike", "^(?!188.143.232.(?<!\d)(?:[1-9]?\d|1\d\d|2(?:[0-4]\d|5[0-5]))(?!\d)).*$",
                                startonline=None, endonline=None)
 
@@ -479,39 +481,71 @@ class FlanTestCases(TestCase):
         self.assertTrue(len(distinctips) > 1)
         self.assertTrue(line['request'] in ['POST /a.html HTTP/1.0', 'POST /b.html HTTP/1.0', 'POST /c.html HTTP/1.0'] for line in lines)
 
-    def test_1230_kafka_integration(self):
+    def test_1230_kafka_export(self):
         """
-        Kafka integration test
+        Kafka exports test
         """
-        wasenabled = False
-        isenabled = utils.getyaml("kafka", "enabled")
-        if isenabled:
-            wasenabled = True
-        else:
-            isenabled = utils.setyaml("kafka", "enabled", True)
-        if isenabled:
-            utils.setyaml("kafka", "loginfo", True)
-            # stop zookeeper & kafka if they are running
-            os.system("kafka-server-stop")
-            os.system("zookeeper-server-stop")
-            # start zookeeper
-            os.system("zookeeper-server-start -daemon /usr/local/etc/kafka/zookeeper.properties")
-            sleep(10)
-            # start kafka
-            os.system("kafka-server-start -daemon /usr/local/etc/kafka/server.properties")
-            sleep(10)
-            # test
-            self.chk4success("-o kafka %s" % testtemplate1)
-            # stop zookeeper & kafka if they are running
-            os.system("kafka-server-stop")
-            os.system("zookeeper-server-stop")
-            utils.setyaml("kafka", "loginfo", False)
-        else:
-            self.assertTrue(isenabled)  # this line will always fail, as intended here
-        if not wasenabled:
-            isenabled = utils.setyaml("kafka", "enabled", False)
+        try:
+            wasenabled = False
+            isenabled = utils.getyaml("kafka", "export", "enabled")
             if isenabled:
-                self.assertFalse(isenabled)  # this line will always fail, as intended here
+                wasenabled = True
+            else:
+                isenabled = utils.setyaml("kafka", "export", "enabled", True)
+            if isenabled:
+                utils.setyaml("kafka", "export", "loginfo", True)
+                # stop zookeeper & kafka if they are running
+                os.system("kafka-server-stop")
+                os.system("zookeeper-server-stop")
+                # start zookeeper
+                os.system("zookeeper-server-start -daemon %s" % os.path.join(kafkahome, "zookeeper.properties"))
+                sleep(10)
+                # start kafka
+                os.system("kafka-server-start -daemon %s" % os.path.join(kafkahome, "server.properties"))
+                sleep(10)
+                # test
+                self.chk4success("-o kafka %s" % testtemplate1)
+            else:
+                self.assertTrue(isenabled)  # this line will always fail, as intended here
+            if not wasenabled:
+                isenabled = utils.setyaml("kafka", "export", "enabled", False)
+                if isenabled:
+                    self.assertFalse(isenabled)  # this line will always fail, as intended here
+        finally:
+            # stop zookeeper & kafka if they are running
+            os.system("kafka-server-stop")
+            os.system("zookeeper-server-stop")
+            utils.setyaml("kafka", "export", "loginfo", False)
+
+    def test_1240_splunk_export(self):
+        """
+        Splunk exports test
+        """
+        try:
+            wasenabled = False
+            isenabled = utils.getyaml("splunk", "export", "enabled")
+            if isenabled:
+                wasenabled = True
+            else:
+                isenabled = utils.setyaml("splunk", "export", "enabled", True)
+            if isenabled:
+                utils.setyaml("splunk", "export", "loginfo", True)
+                # stop splunk if running
+                os.system("%s stop" % os.path.join(splunkhome, "splunk"))
+                # start splunk
+                os.system("%s start" % os.path.join(splunkhome, "splunk"))
+                # test
+                self.chk4success("-o splunk %s" % testtemplate1)
+            else:
+                self.assertTrue(isenabled)  # this line will always fail, as intended here
+            if not wasenabled:
+                isenabled = utils.setyaml("splunk", "export", "enabled", False)
+                if isenabled:
+                    self.assertFalse(isenabled)  # this line will always fail, as intended here
+        finally:
+            # stop splunk
+            os.system("%s stop" % os.path.join(splunkhome, "splunk"))
+            utils.setyaml("splunk", "export", "loginfo", False)
 
 
     #
@@ -523,3 +557,4 @@ class FlanTestCases(TestCase):
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
         if os.path.exists(testout):
             utils.wipe(testout)
+

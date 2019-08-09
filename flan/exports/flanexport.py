@@ -11,8 +11,9 @@ import os
 import socket
 import string
 
-def _timeout(integrationname):
-    error('Flan->%s integration timed out' % integrationname)
+
+def _timeout(exportname):
+    error('Flan->%s exports timed out' % exportname)
     thread.interrupt_main()  # raises KeyboardInterrupt
 
 
@@ -34,10 +35,10 @@ def timeout_after(s):
     return outer
 
 
-class FlanIntegration:
+class FlanExport:
     __metaclass__ = ABCMeta
 
-    class FlanIntegrationWriter:
+    class FlanExportWriter:
 
         def __init__(self, publisher):
             self.publisher = publisher
@@ -52,15 +53,18 @@ class FlanIntegration:
     def __init__(self, name, meta, config):
         self.name = name
         self.meta = meta
-        self.config = config["producer"]
+        self.config = config["export"]
         self.loglevel = "info" if istruthy(self.config["loginfo"]) \
             else "errors" if istruthy(self.config["logerrors"]) \
             else "none"
         self.haltonerror = istruthy(self.config["haltonerror"])
         self.version = settings.__VERSION__
-        self.topic_must_exist = istruthy(self.config["topic_must_exist"])
+        if "topic_must_exist" in self.config:
+            self.topic_must_exist = istruthy(self.config["topic_must_exist"])
+        else:
+            self.topic_must_exist = None
         self.prepare()
-        self.writer = self.FlanIntegrationWriter(self)
+        self.writer = self.FlanExportWriter(self)
 
     @abstractmethod
     def prepare(self):
@@ -85,7 +89,7 @@ class FlanIntegration:
 
     def logerr(self, err):
         if self.loglevel == "errors" or self.haltonerror:
-            error('Flan->%s integration failed: %s' % (self.name, err))
+            error('Flan->%s exports failed: %s' % (self.name, err))
         if self.haltonerror:
             os._exit(1)
         return

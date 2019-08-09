@@ -1,9 +1,10 @@
 import os
 import resource
 
-__VERSION__ = "0.0.29"
+__VERSION__ = "0.0.30"
 
-INTEGRATIONS = ["none", "stdout", "kafka", "splunk", "stompmq", "fluentd"]
+IMPORTS = ["files", "splunk"]
+EXPORTS = ["none", "stdout", "kafka", "splunk", "stompmq", "fluentd"]
 
 R_MAX = 100000000
 R_DEFAULT_NOSTREAMING = 10000
@@ -163,7 +164,8 @@ UA_FREQUENCIES = \
 # Don't change any settings below this
 #
 
-INTEGRATION_CONFIG_FILE = ""
+IMPORT_CONFIG_FILE = ""
+EXPORT_CONFIG_FILE = ""
 LOGGER = None
 
 MAX_RSS_MEMORY_USED = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss

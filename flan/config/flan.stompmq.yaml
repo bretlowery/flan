@@ -1,6 +1,6 @@
 stomp:
-    enabled: True
-    producer:
+  redacted
+        enabled: True
         loginfo: False
         logerrors: True
         haltonerror: True

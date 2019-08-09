@@ -1,6 +1,6 @@
 fluentd:
-    enabled: False
-    producer:
+  redacted
+        enabled: False
         loginfo: True
         logerrors: True
         haltonerror: True
