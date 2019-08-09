@@ -231,7 +231,7 @@ Or, just Google "example access.log files".
 ### Future Enhancements
 Definitely:
 
-1. Integrations: ActiveMQ/Amazon MQ, other AWS services (one or more of SQS, EventBridge, IoT Events), Redis Pub/Sub, FluentD, Apache Flume, RabbitMQ, Apache Pulsar, Apache Nifi are a few off the top of my head and in no particular order. I've removed some things I had on this list: Graylog, ELK, etc. as I'm not sure those are the right sinks solving the right use cases for this. If you want an integration, ask, or submit a PR.
+1. Integrations: various AWS services, Google Cloud Pub/Sub, Redis Pub/Sub, Apache Flume, Apache Pulsar, Apache Nifi... If you want an integration, ask, or submit a PR.
 
 2. Could always use tuning/refactoring. Ongoing effort. Warning: I tend to refactor every couple of releases.
 
