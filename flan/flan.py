@@ -318,7 +318,7 @@ class MetaManager:
         # -k
         self.quotechar = "'" if options.quote else ""
         # --pace
-        self.pace = options.pace
+        self.pace = options.pace if not self.streaming else True
 
         # -n
         f = 0
@@ -846,7 +846,6 @@ class DataManager:
 
         if self.botlist:
             self.botlist = list(dict.fromkeys(self.botlist))  # remove dupes
-        self.parsed = self.parsed
 
         return
 
@@ -957,6 +956,7 @@ def make_flan(options, servicemode=False):
     current_delimiter = ""
     meta.period_start_dt = meta.start_dt
     meta.period_end_dt = None
+    last_logindex = len(data.parsed) - 1
 
     while True:
         if not time_distribution:
@@ -995,13 +995,13 @@ def make_flan(options, servicemode=False):
                 log.write('[\r\n')
             current_delimiter = ""
             # pacing base
-            pace_base = datetime.datetime.now()
+            pace_base = datetime.datetime.now() if meta.pace else None
         #
         # get timestamp of the log entry to write
         # is that timestamp after the -e date? we're done!
         #
         timestamp = timeslot[0]
-        if timestamp > meta.end_dt:
+        if timestamp > meta.end_dt and not meta.streaming:
             break
         #
         # pacing
@@ -1022,13 +1022,10 @@ def make_flan(options, servicemode=False):
         else:
             log.write("%s%s%s%s" % (current_delimiter, meta.quotechar, data.generate_entry(timestamp, logindex, meta, uas.uas), meta.quotechar))
         #
-        # increment counters, logindex, and available timeslot if needed
+        # increment counters and available timeslot if needed
         #
         totthisfile += 1
         totwritten += 1
-        logindex += 1
-        if len(data.parsed) == logindex:
-            logindex = 0
         spots = timeslot[1]
         if spots == 1:
             # no spots left, we're done with this time slot
@@ -1044,6 +1041,13 @@ def make_flan(options, servicemode=False):
             # one spot filled; decrement the number of available spots we have with this timestamp
             timeslot = (timestamp, spots - 1)
         current_delimiter = meta.delimiter
+        #
+        # move the template log pointer forward; if at the end, wrap around back to its beginning
+        #
+        if last_logindex == logindex:
+            logindex = 0
+        else:
+            logindex += 1
         #
         # check status
         #
