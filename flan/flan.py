@@ -938,7 +938,6 @@ def make_flan(options, servicemode=False):
 
     # verify parameters, and load the template log file or replay log
     meta = MetaManager(options, servicemode)
-    profile_memory(meta)
 
     # parse and store the template log file data line by line
     data = DataManager(meta)
@@ -946,16 +945,7 @@ def make_flan(options, servicemode=False):
     # populate ua list with frequency-appropriate selection of UAs actually seen in the template log
     uas = UAFactory(meta, data)
 
-    # if preserving sessions, the number of generated entries must = the number in the template log
     meta.files = 1 if meta.files < 1 else meta.files
-    if meta.preserve_sessions:
-        records_per_file = int(data.totok * 1.0 / meta.files)
-        if not meta.quiet:
-            info("NOTE: -p (preserve sessions) specified. Matching template log, setting -r (the number of records per file) = %d * %d files = "
-                  "%d total records will be generated." % (records_per_file, meta.files, meta.records))
-    else:
-        records_per_file = int(meta.records * 1.0 / meta.files)
-
     currentfile = meta.files
     log = None
     time_distribution = None
@@ -1008,13 +998,22 @@ def make_flan(options, servicemode=False):
             pace_base = datetime.datetime.now()
         #
         # get timestamp of the log entry to write
-        #
-        timestamp = timeslot[0]
-        #
         # is that timestamp after the -e date? we're done!
         #
+        timestamp = timeslot[0]
         if timestamp > meta.end_dt:
             break
+        #
+        # pacing
+        #
+        if meta.pace:
+            clock_offset = (datetime.datetime.now() - pace_base).total_seconds()
+            log_offset = (timestamp - time_base).total_seconds()
+            while log_offset > clock_offset:
+                #  I'm ahead of myself, hold yer horses hoss
+                sleep(0.05)
+                clock_offset = (datetime.datetime.now() - pace_base).total_seconds()
+                log_offset = (timestamp - time_base).total_seconds()
         #
         # emit one entry
         #
@@ -1028,6 +1027,8 @@ def make_flan(options, servicemode=False):
         totthisfile += 1
         totwritten += 1
         logindex += 1
+        if len(data.parsed) == logindex:
+            logindex = 0
         spots = timeslot[1]
         if spots == 1:
             # no spots left, we're done with this time slot
@@ -1044,21 +1045,17 @@ def make_flan(options, servicemode=False):
             timeslot = (timestamp, spots - 1)
         current_delimiter = meta.delimiter
         #
-        # pacing
+        # check status
         #
-        if meta.pace:
-            clock_offset = (datetime.datetime.now() - pace_base).total_seconds()
-            log_offset = (timestamp - time_base).total_seconds()
-            while log_offset > clock_offset:
-                #  I'm ahead of myself, hold yer horses hoss
-                sleep(0.05)
-                clock_offset = (datetime.datetime.now() - pace_base).total_seconds()
-                log_offset = (timestamp - time_base).total_seconds()
+        if totthisfile % 100 == 0:
+            profile_memory(meta)
+            if not meta.quiet:
+                info('Wrote %d entries...' % totthisfile)
         #
         # is the current output log file full? then start a new one
         #
         if meta.streamtarget == "none" and not meta.streaming:
-            if totthisfile >= records_per_file:
+            if totthisfile >= meta.records:
                 if options.outputformat == "json":
                     log.write('\r\n]')
                 if not meta.quiet:
@@ -1066,17 +1063,10 @@ def make_flan(options, servicemode=False):
                 if targetproxy:
                     targetproxy.close()
                 log = None
-                currentfile -= 1
-                meta.gzipindex -= 1 if meta.gzipindex > 0 else 0
-                totthisfile = 0
-
-        #
-        # post emit
-        #
-        profile_memory(meta)
-        if not meta.quiet:
-            if totthisfile % 100 == 0:
-                info('Wrote %d entries...' % totthisfile)
+                if currentfile == 0:
+                    break
+                else:
+                    meta.gzipindex -= 1 if meta.gzipindex > 0 else 0
         #
         # go back for more
         #

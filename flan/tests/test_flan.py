@@ -444,7 +444,9 @@ class FlanTestCases(TestCase):
                                startonline=None, endonline=None, status='pass', scope='any')
         rows = [k for k, v in matches.items()]
         lines = [v for k, v in matches.items()]
-        self.assertTrue(rows == [4, 8, 14])
+        self.assertTrue(rows[0] == 4)
+        self.assertTrue(rows[1] == 8)
+        self.assertTrue(rows[2] == 14)
         self.assertTrue(line['remote_addr'] == lines[0]['remote_addr'] for line in lines)
         self.assertTrue(line['http_user_agent'] == lines[0]['http_user_agent'] for line in lines)
         self.assertTrue(line['remote_user'] == lines[0]['remote_user'] for line in lines)

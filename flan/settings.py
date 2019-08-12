@@ -1,7 +1,7 @@
 import os
 import resource
 
-__VERSION__ = "0.0.30"
+__VERSION__ = "0.0.31"
 
 IMPORTS = ["files", "splunk"]
 EXPORTS = ["none", "stdout", "kafka", "splunk", "stompmq", "fluentd"]
