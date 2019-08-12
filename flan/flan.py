@@ -235,7 +235,7 @@ class MetaManager:
                 fqdn = socket.getfqdn()
                 locips = str(socket.gethostbyname_ex(socket.gethostname())[-1])
                 j = ""
-                for d in range(1, self.delta + 1):
+                for d in range(1, self.period_days + 1):
                     for h in range(0, 24):
                         j = j + '\r\n        {"day": %d, "hour": %d, "count": %d},' % (d, h, self.meta[d][h])
                 j = '[\r\n  {"flan": "%s",' \
@@ -371,13 +371,8 @@ class MetaManager:
         end_dt = None
         self.end_dt = None
         self.period = None
-        if options.period:
-            if self.streaming:
-                if options.period < 1:
-                    error('when using continuous streaming (-c) and specifying a distribution period (-j), '
-                          'the period must be greater than zero.')
-            else:
-                error('the distribution period (-j) is unsupported when continuous streaming (-c) is not specified.')
+        if options.period < 0:
+            error('when specifying a distribution period (-j), the period must be greater than zero.')
         if not options.end_dt:
             end_dt = datetime.datetime.combine(datetime.date.today() + datetime.timedelta(days=1), datetime.datetime.min.time())
         if options.end_dt:
@@ -385,22 +380,20 @@ class MetaManager:
                 end_dt = dtparser.parse(options.end_dt)
             except:
                 error('the end date (-e) specified is not a valid datetime.')
-        delta = (end_dt - start_dt).total_seconds()
-        self.end_dt = end_dt
-        if self.streaming:
-            if options.period:
-                if delta * 86400 < options.period:
-                    error('if a start date (-s), end date (-e) and period (-j) are all specified when streaming (-c), '
-                          'the number of seconds between the start and end dates must not be less than the period value.')
-                self.period = options.period
-            else:
-                self.period = delta
-        else:
-            self.period = delta
-        self.period_days = ceil(self.period / 86400)
-
-        if self.end_dt <= self.start_dt:
+        if end_dt <= self.start_dt:
             error('the end date (-e) must be after the start date (-s).')
+        self.end_dt = end_dt
+        self.delta = (self.end_dt - self.start_dt).total_seconds()
+        if options.period == 0:
+            self.period = self.delta if self.delta <= 86400 else 86400
+        elif self.delta < options.period:
+            error('if a start date (-s), end date (-e) and period (-j) are all specified, '
+                  'the period must be less than the number of seconds between the start and end dates.')
+        else:
+            self.period = options.period
+        self.period_days = ceil(self.delta / 86400)
+        self.period_start_dt = None
+        self.period_end_dt = None
 
         # --rps
         # self.rps = 0
@@ -889,12 +882,20 @@ class DataManager:
 
 def make_distribution(meta):
 
-    def _getdtkey(offset):
+    def _addtopsdt(offset):
         # round down microseconds then add seconds offset
-        return meta.start_dt - datetime.timedelta(microseconds=meta.start_dt.microsecond) + datetime.timedelta(seconds=offset, microseconds=0)
+        return meta.period_start_dt - datetime.timedelta(microseconds=meta.period_start_dt.microsecond) + \
+               datetime.timedelta(seconds=offset, microseconds=0)
 
-    midpoint = round(meta.period / 2.0) if meta.disttype == 2 else None
-    tot2write = meta.files * meta.records if meta.files > 0 else meta.records
+    if meta.disttype == 1:
+        midpoint = None
+        meta.period_end_dt = meta.end_dt
+        tot2write = (meta.files * meta.records) if meta.files > 0 else meta.records
+    else:
+        midpoint = round(meta.period / 2.0)
+        meta.period_end_dt = _addtopsdt(meta.period)
+        period_ratio = (meta.period_end_dt - meta.period_start_dt).total_seconds() * 1.0 / meta.delta
+        tot2write = int(meta.files * meta.records * period_ratio) if meta.files > 0 else int(meta.records * period_ratio)
     d = {}
     if meta.disttype == 2:
         # create a set of normally-distributed time slots with a sprinkle of random points between the start and end datetimes
@@ -902,9 +903,9 @@ def make_distribution(meta):
         # uniqueify the generated distribution at the per-second level
         # if I generated the same datetime X times, add a counter = X
         for val in normal_distribution:
-            key = _getdtkey(int(val)) \
+            key = _addtopsdt(int(val)) \
                 if 0.00 <= val <= meta.period \
-                else _getdtkey(random.randint(0, meta.period))
+                else _addtopsdt(random.randint(0, meta.period))
             d[key] = d[key] + 1 \
                 if key in d.keys() \
                 else 1
@@ -915,7 +916,7 @@ def make_distribution(meta):
         # if I generated the same datetime X times, add a counter = X
         random_distribution = np.random.randint(meta.period, size=tot2write)
         for val in random_distribution:
-            key = _getdtkey(int(val))
+            key = _addtopsdt(int(val))
             d[key] = d[key] + 1 \
                 if key in d.keys() \
                 else 1
@@ -942,140 +943,146 @@ def make_flan(options, servicemode=False):
     # parse and store the template log file data line by line
     data = DataManager(meta)
 
+    # populate ua list with frequency-appropriate selection of UAs actually seen in the template log
+    uas = UAFactory(meta, data)
+
     # if preserving sessions, the number of generated entries must = the number in the template log
+    meta.files = 1 if meta.files < 1 else meta.files
     if meta.preserve_sessions:
-        meta.files = 1 if meta.files < 1 else meta.files
-        meta.records = int(data.totok * 1.0 / meta.files)
+        records_per_file = int(data.totok * 1.0 / meta.files)
         if not meta.quiet:
             info("NOTE: -p (preserve sessions) specified. Matching template log, setting -r (the number of records per file) = %d * %d files = "
-                  "%d total records will be generated." % (meta.records, meta.files, meta.records * meta.files))
+                  "%d total records will be generated." % (records_per_file, meta.files, meta.records))
+    else:
+        records_per_file = int(meta.records * 1.0 / meta.files)
 
     currentfile = meta.files
-    uas = None
-    timestamp = None
+    log = None
+    time_distribution = None
+    timeslot = None
     targetproxy = None
-    skema = None
-    while True:
-        #
-        # Build the time slice distribution to attribute fake log entries to
-        #
-        tot2write, time_distribution = make_distribution(meta)
-        #
-        # First time through only, populate ua list with frequency-appropriate selection of bots actually seen in the template log
-        #
-        if not uas:
-            uas = UAFactory(meta, data)
-        #
-        if not meta.quiet and not meta.streaming:
-            info('Parsed and prepped a total of %d entries (%d successfully, %d skipped).' % (data.totread, data.totok, data.totread - data.totok))
-        #
-        # Generate the requested fake logs!
-        #
-        currentfile = currentfile - 1
-        totthisfile = 0
-        totwritten = 0
-        logindex = 0
-        current_delimiter = ""
-        timeslot = None
-        pace_base = None
-        time_base = None
-        log = None
-        while totwritten < tot2write:
-            #
-            # prep to emit
-            #
-            if not log:
-                if meta.streamtarget == "none":
-                    log = meta.new_outputfile(currentfile)
-                    if not meta.quiet:
-                        info('Beginning write of fake entries to log %s.' % log.name)
-                else:
-                    targetproxy = exporter(meta)
-                    log = targetproxy.target
-                # get 1st entry in the time distribution
-                timeslot = _next(time_distribution)
-                time_base = timeslot[0]
-                # pacing (re)base
-                pace_base = datetime.datetime.now()
-                # beginning of template log
-                logindex = 0
-                # if json output, start a json array
-                if options.outputformat == "json":
-                    log.write('[\r\n')
-                current_delimiter = ""
+    totthisfile = 0
+    totwritten = 0
+    logindex = 0
+    current_delimiter = ""
+    meta.period_start_dt = meta.start_dt
+    meta.period_end_dt = None
 
-            timestamp = timeslot[0]
-            if timestamp > meta.end_dt:
+    while True:
+        if not time_distribution:
+            #
+            # Build a new time slice distribution to attribute fake log entries to
+            #
+            tot2write, time_distribution = make_distribution(meta)
+            # get 1st entry in the time distribution
+            timeslot = _next(time_distribution)
+            if timeslot is None:
                 break
-            spots = timeslot[1]
+            time_base = timeslot[0]
+        #
+        # if not meta.quiet and not meta.streaming:
+        #    info('Parsed and prepped a total of %d entries (%d successfully, %d skipped).' % (data.totread, data.totok, data.totread - data.totok))
+        #
+        # Generate the requested fake logs for the current periodicity
+        #
+        if not log:
             #
-            # emit one entry
+            # start a new output log
             #
-            if meta.gzipindex > 0:
-                log.write(str.encode("%s%s%s%s" % (current_delimiter, meta.quotechar, data.generate_entry(timestamp, logindex, meta, uas.uas), meta.quotechar)))
+            currentfile = currentfile - 1
+            if meta.streamtarget == "none":
+                log = meta.new_outputfile(currentfile)
+                if not meta.quiet:
+                    info('Beginning write of fake entries to log %s.' % log.name)
+                totthisfile = 0
             else:
-                log.write("%s%s%s%s" % (current_delimiter, meta.quotechar, data.generate_entry(timestamp, logindex, meta, uas.uas), meta.quotechar))
-            #
-            # increment counters, logindex, and available timeslot if needed
-            #
-            totthisfile += 1
-            totwritten += 1
-            logindex += 1
-            if spots == 1:
-                # no spots left, we're done with this time slot
-                # get next available time slot, freeing up memory in the process
-                del time_distribution[timestamp]
-                timeslot = _next(time_distribution)
-            else:
-                # one spot filled; decrement the number of available spots we have with this timestamp
-                timeslot = (timestamp, spots - 1)
-            current_delimiter = meta.delimiter
-            #
-            # pacing
-            #
-            if meta.pace:
+                targetproxy = exporter(meta)
+                log = targetproxy.target
+            # beginning of template log
+            logindex = 0
+            # if json output, start a json array
+            if options.outputformat == "json":
+                log.write('[\r\n')
+            current_delimiter = ""
+            # pacing base
+            pace_base = datetime.datetime.now()
+        #
+        # get timestamp of the log entry to write
+        #
+        timestamp = timeslot[0]
+        #
+        # is that timestamp after the -e date? we're done!
+        #
+        if timestamp > meta.end_dt:
+            break
+        #
+        # emit one entry
+        #
+        if meta.gzipindex > 0:
+            log.write(str.encode("%s%s%s%s" % (current_delimiter, meta.quotechar, data.generate_entry(timestamp, logindex, meta, uas.uas), meta.quotechar)))
+        else:
+            log.write("%s%s%s%s" % (current_delimiter, meta.quotechar, data.generate_entry(timestamp, logindex, meta, uas.uas), meta.quotechar))
+        #
+        # increment counters, logindex, and available timeslot if needed
+        #
+        totthisfile += 1
+        totwritten += 1
+        logindex += 1
+        spots = timeslot[1]
+        if spots == 1:
+            # no spots left, we're done with this time slot
+            # get next available time slot, freeing up memory in the process
+            del time_distribution[timestamp]
+            timeslot = _next(time_distribution)
+            if timeslot is None:
+                # The current time distribution is filled! Get a new time distribution if we go around again
+                meta.period_start_dt = meta.period_end_dt + timedelta(seconds=1)
+                meta.period_end_dt = meta.period_end_dt + timedelta(seconds=meta.period)
+                time_distribution = None
+        else:
+            # one spot filled; decrement the number of available spots we have with this timestamp
+            timeslot = (timestamp, spots - 1)
+        current_delimiter = meta.delimiter
+        #
+        # pacing
+        #
+        if meta.pace:
+            clock_offset = (datetime.datetime.now() - pace_base).total_seconds()
+            log_offset = (timestamp - time_base).total_seconds()
+            while log_offset > clock_offset:
+                #  I'm ahead of myself, hold yer horses hoss
+                sleep(0.05)
                 clock_offset = (datetime.datetime.now() - pace_base).total_seconds()
                 log_offset = (timestamp - time_base).total_seconds()
-                while log_offset > clock_offset:
-                    #  I'm ahead of myself, hold yer horses hoss
-                    sleep(0.05)
-                    clock_offset = (datetime.datetime.now() - pace_base).total_seconds()
-                    log_offset = (timestamp - time_base).total_seconds()
-            #
-            # post emit
-            #
-            profile_memory(meta)
-            if not meta.quiet:
-                if totthisfile % 100 == 0:
-                    info('Wrote %d entries...' % totthisfile)
-            if meta.streamtarget == "none" and not meta.streaming:
-                if totthisfile == meta.records:
-                    if options.outputformat == "json":
-                        log.write('\r\n]')
-                    if not meta.quiet:
-                        info('Log %s completed.' % log.name)
-                    if targetproxy:
-                        targetproxy.close()
-                    log = None
-                    currentfile -= 1
-                    meta.gzipindex -= 1 if meta.gzipindex > 0 else 0
-                    totthisfile = 0
+        #
+        # is the current output log file full? then start a new one
+        #
+        if meta.streamtarget == "none" and not meta.streaming:
+            if totthisfile >= records_per_file:
+                if options.outputformat == "json":
+                    log.write('\r\n]')
+                if not meta.quiet:
+                    info('Log %s completed.' % log.name)
+                if targetproxy:
+                    targetproxy.close()
+                log = None
+                currentfile -= 1
+                meta.gzipindex -= 1 if meta.gzipindex > 0 else 0
+                totthisfile = 0
 
-        # are we done?
-        if not meta.streaming:
-            break
-        if timestamp:
-            if timestamp > meta.end_dt:
-                break
-
-        # streaming loop
-        # adjust dates forward
-        # reset log
-        meta.start_dt = meta.end_dt
-        meta.end_dt = meta.end_dt + timedelta(seconds=meta.period)
-        log = None
+        #
+        # post emit
+        #
+        profile_memory(meta)
+        if not meta.quiet:
+            if totthisfile % 100 == 0:
+                info('Wrote %d entries...' % totthisfile)
+        #
+        # go back for more
+        #
         continue
 
+    # finally
     if log:
         if options.outputformat == "json":
             log.write('\r\n]')
@@ -1173,8 +1180,10 @@ def interactiveMode():
                       dest="period",
                       type=int,
                       default=0,
-                      help="If using continuous streaming (-c), defines the length of a single time distribution period in seconds (1d=exactly 24h; no leaps taken into account). If using normal distribution, "
-                           "the distribution will be this long, with the peak in the middle of it." )
+                      help="Defines the length of a single time distribution period in seconds (1d=exactly 24h; no leaps taken into account). "
+                           "If using normal distribution, the distribution will be this long, with the peak in the middle of it. This must be "
+                           "equal to or less than the number of seconds between the -s and -e values. Default=0; the period is set to the time "
+                           "between the -s and -e values, or 86400 seconds (1 day), whichever is less." )
     argz.add_argument("-k",
                       action="store_true",
                       dest="quote",
