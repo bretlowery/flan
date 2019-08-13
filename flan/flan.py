@@ -262,7 +262,7 @@ class MetaManager:
     def __init__(self, options, servicemode=False):
         global IMPORT_CONFIG_FILE, EXPORT_CONFIG_FILE
 
-        if options.streamtarget != "none":
+        if options.streamtarget not in ["none", "stdout"]:
             options.quiet = True
 
         if not options.quiet:
@@ -298,6 +298,7 @@ class MetaManager:
         if self.servicemode and self.streaming and self.streamtarget == "stdout":
             error("stdout streaming is not supported in service mode.")
         if self.streamtarget not in ["none", "stdout"]:
+            self.quiet = True
             EXPORT_CONFIG_FILE = os.path.join(os.path.dirname(__file__), 'config/flan.%s.yaml' % self.streamtarget)
 
         if self.inputsource == "files":
@@ -318,7 +319,7 @@ class MetaManager:
         # -k
         self.quotechar = "'" if options.quote else ""
         # --pace
-        self.pace = options.pace if not self.streaming else True
+        self.pace = options.pace  # if not self.streaming else True
 
         # -n
         f = 0
@@ -509,6 +510,9 @@ class MetaManager:
             if self.output_exists():
                 error("one or more target file(s) exist, and --overwrite was not specified.")
 
+        # --squeeze
+        self.squeeze = options.squeeze
+
         #
         # handle arg 0: load either the template log file(s), the replay log, the Splunk source, etc
         #
@@ -565,12 +569,32 @@ class UAFactory:
 class DataManager:
 
     @staticmethod
-    def _ts_to_logdts(ts):
+    def _str_to_dt(strdt, fmt="%Y-%m-%d %H:%M:%S"):
+        return datetime.datetime.strptime(strdt, fmt)
+
+    @staticmethod
+    def _dt_to_str(dt):
+        return str(dt)
+
+    @staticmethod
+    def _tl_to_ymdhms(tl):
         try:
-            dts = str(datetime.datetime(int(ts[7:11]), MONTHS[ts[3:6]], int(ts[0:2]), int(ts[12:14]), int(ts[15:17]), int(ts[18:20])))
-        except:
-            dts = None
-        return dts
+            tl = tl[:-6] if tl[-6:][:1] == " " else tl
+            tl = tl.replace(":", " ", 1) if tl.count(":") == 3 else tl
+            dts = dtparser.parse(tl)
+            rtn = datetime.datetime.strftime(dts, "%Y-%m-%d %H:%M:%S")
+        except Exception as e:
+            rtn = None
+            pass
+        return rtn
+
+    @staticmethod
+    def _dt_to_tl(ymdhms, meta):
+        try:
+            rtn = datetime.datetime.strftime(ymdhms, meta.timeformat) + " " + meta.timezone
+        except Exception as e:
+            rtn = None
+        return rtn
 
     @staticmethod
     def _load_bot_json():
@@ -663,7 +687,7 @@ class DataManager:
         if m:
             dikt = m.groupdict()
             if "time_local" in dikt.keys():
-                dikt["_ts"] = self._ts_to_logdts(dikt["time_local"])
+                dikt["_ts"] = self._tl_to_ymdhms(dikt["time_local"])
             return dikt
         else:
             return None
@@ -795,17 +819,12 @@ class DataManager:
                     else:
                         parsed_line["_isbot"] = False
 
-                if "_ts" in keys:
-                    if earliest_ts:
-                        if parsed_line["_ts"] < earliest_ts:
-                            earliest_ts = parsed_line["_ts"]
-                    else:
-                        earliest_ts = parsed_line["_ts"]
-                    if latest_ts:
-                        if parsed_line["_ts"] > latest_ts:
-                            latest_ts = parsed_line["_ts"]
-                    else:
-                        latest_ts = parsed_line["_ts"]
+                t = self._str_to_dt(parsed_line["_ts"])
+                if earliest_ts:
+                    if t < earliest_ts:
+                        earliest_ts = t
+                else:
+                    earliest_ts = t
 
                 if 'remote_addr' in keys:
                     ip = parsed_line["remote_addr"]
@@ -826,8 +845,24 @@ class DataManager:
 
                     parsed_line["_ip"] = ipaddress.ip_address(ip)
 
-                self.parsed.append(parsed_line)
                 self.totok += 1
+
+                if meta.squeeze:
+                    if latest_ts:
+                        t = earliest_ts + datetime.timedelta(seconds=self.totok-1)
+                        parsed_line["_ts"] = self._dt_to_str(t)
+                        if "time_local" in keys:
+                            parsed_line["time_local"] = self._dt_to_tl(t, meta)
+                    elif earliest_ts and "time_local" in keys:
+                        parsed_line["time_local"] = self._dt_to_tl(earliest_ts, meta)
+
+                if latest_ts:
+                    if t > latest_ts:
+                        latest_ts = t
+                else:
+                    latest_ts = t
+
+                self.parsed.append(parsed_line)
 
                 if not meta.quiet:
                     if self.totread % 100 == 0:
@@ -838,11 +873,14 @@ class DataManager:
         if self.totok == 0:
             error("no usable entries found in the log file provided based on passed parameter filters.")
 
-        if not replaying and (not earliest_ts or not latest_ts):
-            error("no timestamps found in the log file provided. Timestamps are required.")
-
-        if meta.replay and not replaying:
-            self._save_replay_log(self.parsed, meta)
+        if not replaying:
+            if not earliest_ts or not latest_ts:
+                error("no timestamps found in the log file provided. Timestamps are required.")
+            self.record_density = self.totok * 1.0 / (latest_ts - earliest_ts).total_seconds()
+            if meta.replay:
+                self._save_replay_log(self.parsed, meta)
+        else:
+            self.record_density = 1
 
         if self.botlist:
             self.botlist = list(dict.fromkeys(self.botlist))  # remove dupes
@@ -879,7 +917,7 @@ class DataManager:
             replace("$http_referer", entry["http_referer"])
 
 
-def make_distribution(meta):
+def make_distribution(meta, data):
 
     def _addtopsdt(offset):
         # round down microseconds then add seconds offset
@@ -893,8 +931,11 @@ def make_distribution(meta):
     else:
         midpoint = round(meta.period / 2.0)
         meta.period_end_dt = _addtopsdt(meta.period)
-        period_ratio = (meta.period_end_dt - meta.period_start_dt).total_seconds() * 1.0 / meta.delta
-        tot2write = int(meta.files * meta.records * period_ratio) if meta.files > 0 else int(meta.records * period_ratio)
+        period_length = (meta.period_end_dt - meta.period_start_dt).total_seconds()
+        period_ratio = period_length * 1.0 / meta.delta
+        tot2write = int(data.record_density * period_length) if meta.streaming \
+            else int(meta.files * meta.records * period_ratio) if meta.files > 0 \
+            else int(meta.records * period_ratio)
     d = {}
     if meta.disttype == 2:
         # create a set of normally-distributed time slots with a sprinkle of random points between the start and end datetimes
@@ -963,7 +1004,7 @@ def make_flan(options, servicemode=False):
             #
             # Build a new time slice distribution to attribute fake log entries to
             #
-            tot2write, time_distribution = make_distribution(meta)
+            tot2write, time_distribution = make_distribution(meta, data)
             # get 1st entry in the time distribution
             timeslot = _next(time_distribution)
             if timeslot is None:
@@ -979,8 +1020,8 @@ def make_flan(options, servicemode=False):
             #
             # start a new output log
             #
-            currentfile = currentfile - 1
             if meta.streamtarget == "none":
+                currentfile -= 1
                 log = meta.new_outputfile(currentfile)
                 if not meta.quiet:
                     info('Beginning write of fake entries to log %s.' % log.name)
@@ -1121,7 +1162,8 @@ def interactiveMode():
     argz.add_argument("-c", "--continuous",
                       action="store_true",
                       dest="streaming",
-                      help="TBD"
+                      help="Continuous streaming mode. If enabled, ignores the -e setting, and streams entries continuously until "
+                           "settings.R_MAX is reached. -o must be specified. Not available for file output.	"
                       )
     argz.add_argument("-d", "--distribution",
                       action="store",
@@ -1259,6 +1301,13 @@ def interactiveMode():
     #                        "ignoring any explicitly specified -r value. "
     #                        "The actual pace may be less than this value in practice. "
     #                        "Default=no pacing (write/stream as fast as possible)." )
+    argz.add_argument("--squeeze",
+                      action="store_true",
+                      dest="squeeze",
+                      help="If specified, compresses the timestamps on the template log file so that at least one entry will be generated "
+                           "every second regardless of the actual records-per-second density in the template log. Meant specifically for "
+                           "testing Flan results."
+                      )
     argz.add_argument("-s", "--start",
                       action="store",
                       dest="start_dt",
@@ -1267,7 +1316,7 @@ def interactiveMode():
                       action="store",
                       dest="timeformat",
                       default="%-d/%b/%Y:%H:%M:%S",
-                      help="Timestamp format to use in the generated log file(s), EXCLUDING TIMEZONE (see -z parameter), "
+                      help="Timestamp format to use in both the template log and the generated log file(s), EXCLUDING TIMEZONE (see -z parameter), "
                            "in Python strftime format (see http://strftime.org/). Default='%%-d/%%b/%%Y:%%H:%%M:%%S'")
     argz.add_argument("-u", "--uafilter",
                       action="store",

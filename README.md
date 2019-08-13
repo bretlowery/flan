@@ -88,9 +88,17 @@ You can specify the overall time distribution you want to appear in the logs, on
 
 ----------------------
 ### How many records does it generate?
-> If you are NOT using session preservation (-p), the total number of entries generated is equal to the -n parameter value TIMES the -r parameter value, spread in the selected distribution across the timeframe specified between the -s and -e parameter start and end datetimes.
 
-> If you ARE using session preservation (-p), the total number of entries generated is equal to the total number in your provided template log file.
+##### IF YOU ARE NOT CONTINUOUSLY STREAMING (-C IS NOT SPECIFIED)
+###### AND if you are writing output to files:
+> The total number of entries generated is equal to the -n parameter value TIMES the -r parameter value, spread in the selected distribution across the timeframe specified between the -s and -e parameter start and end datetimes. 
+###### OR if you are streaming output to stdout, Kafka, Splunk, or another streaming target:
+> The total number of entries generated is equal the -r parameter value, spread in the selected distribution across the timeframe specified between the -s and -e parameter start and end datetimes. 
+
+##### IF YOU ARE CONTINUOUSLY STREAMING (-C IS SPECIFIED) 
+> The -e end datetime is ignored, and Flan streams records until settings.R_MAX (100,000,000) is reached, or you CTRL-C or shut the service down, or until it hits the UNIX maxdate or you run out of memory or something else and it errors out :-). Pacing is automatically enabled when continuously streaming to avoid a "blowout".
+
+Note: as of v0.0.31, session preservation (-p) no longer limits the number of records generated to the size of the template log(s). 
 
 ----------------------
 ### What does it cost, resource-wise?
@@ -188,15 +196,15 @@ For service mode, use flan.config.yaml instead of commandline arguments. Each of
 | ------------------- |:---------------------------------------| ------------- |
 | &#x2011;a | If specified, halt on any (i.e. the first) unparseable entries in your template log. | Skip any&all unparseable entries |
 | &#x2011;b,<br>&#x2011;&#x2011;botfilter | Iff -u is set to 'all' or 'bots', defines which bots appear in the generated log files, one of:<br><br>seen=only use bots that appear in the template log file and are identifiable as robotic;<br><br>unseen=only use bots found in the user-agents.json file (if used, this should be located in the same directory as flan.py);<br><br>all=use bots from both the template log and the user-agents.json file. | seen |
-| &#x2011;c | ALPHA FEATURE! Continuous streaming mode. If specified, enables continuous streaming. More info here to follow on next release. | No continuous streaming |
-| &#x2011;d,<br>&#x2011;&#x2011;distribution | One of:<br><br>normal=use a normal distribution centered midway between start and end datetimes for the time dimension;<br><br>random=use a random ("shotgun blast") distribution. | normal |
+| &#x2011;c | Continuous streaming mode. If enabled, ignores the -e setting, and streams entries continuously until settings.R_MAX is reached. -o must be specified. Not available for file output.| No continuous streaming |
+| &#x2011;d,<br>&#x2011;&#x2011;distribution | Defines the distribution of the timestamps across the period (the "shape") of the resulting entries. One of:<br><br>normal=use a normal distribution centered midway between start and end datetimes for the time dimension;<br><br>random=use a random ("shotgun blast") distribution. | normal |
 | &#x2011;e,<br>&#x2011;&#x2011;end | Specifies the end datetime to use for the generated log entries. All log entries will have a timestamp on or before this date. | Midnight tomorrow local/server time |
 | &#x2011;f,<br>&#x2011;&#x2011;ipfilter | If provided, this should specify one or more optional IP(s) and/or CIDR range(s) in quotes that all entries in the template log file must match in order to be used for output log generation. Only lines containing an IP that matches one or more of these will be used. Separate one or more IPs or CIDRs here by commas; for example, '--ipfilter \"123.4.5.6,145.0.0.0/16,2001:db8::/48\"'. | Use all otherwise eligible template log lines and their IPs in generating the output logs. |
 | &#x2011;g,<br>&#x2011;&#x2011;gzip | Gzip support. Used in conjunction with the passed -n value, this specifies a file index number at which to begin gzipping generated log files. It must be between 0 and the -n value provided. For example, "-n 5 -g 3" generates log files called "access.log", "access.log.1", "access.log.2.gz", "access.log.3.gz", and "access.log.4.gz": 5 total files, the last 3 of which are gzipped. | 0; no gzipping occurs. |
 | &#x2011;h | Print out these options on the commandline. | |
 | &#x2011;i<br>&#x2011;&#x2011;inputsource | The source of the input. Current only the value "files" is supported (more to come) and this parameter may be omitted. | files |
 | &#x2011;&#x2011;inputformat | The format of each line in the the template log file (a valid NCSA Combined Log Format string). | '$remote_addr - $remote_user [$time_local] \"$request\" $status $body_bytes_sent \"$http_referer\" \"$http_user_agent\"' |
-| &#x2011;j | Continuous streaming periodicity. UNSUPPORTED AS OF v0.0.15. TBD. | N/A |
+| &#x2011;j | Continuous streaming periodicity. If using continuous streaming (-c), defines the length of a single time distribution period in seconds (1d=exactly 24h; no leap minutes or days are taken into account). If using a normal distribution, the distribution will be this long, with the peak in the middle of it. | 86400 seconds (1 day) |
 | &#x2011;k | If specified, add single quotes to the beginning and end of every generated log entry line. | Do not add quotes. |
 | &#x2011;l,<br>&#x2011;&#x2011;linedelimiter | Line delimiter to append to all generated log entries, one of:<br><br>[None, No, False, N, F];<br>[Comma, C];<br>[Tab, T];<br>CR;<br>LF;<br>CRLF.| CRLF |
 | &#x2011;m,<br>&#x2011;&#x2011;ipmapping | Defines how IPs are obfuscated, one of:<br><br>onetomany=one template log IP is mapped to one or more obfuscated IPs in the generated logs. This provides better obfuscation but destroys sessions;<br><br>onetoone=maps every template log IP to a single obfuscated IP in the generated logs, preserving sessions but providing minimal obfuscation;<br><br>none=no IP obfuscation, IPs are left as-is.<br><br>If -p (preserve sessions) is specified, this must be either "none" or "onetoone". | If -p is specified, "onetoone". If -p is not specified, "onetomany". |

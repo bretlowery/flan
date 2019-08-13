@@ -207,21 +207,21 @@ class FlanTestCases(TestCase):
         Basic streaming to stdout
         """
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
-        self.chk4success("-o stdout %s" % testtemplate1)
+        self.chk4success("-q -o stdout %s" % testtemplate1)
 
     def test_1015_botsflag(self):
         """
         Test read crawler list from remote source via '-b all'
         """
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
-        self.chk4success("-o stdout -b all %s" % testtemplate1)
+        self.chk4success("-q -o stdout -b all %s" % testtemplate1)
 
     def test_1020_abort(self):
         """
         Test -a flag, should abort on line #3 in the test file
         """
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
-        self.chk4failure("-a -o stdout %s" % testtemplate1)
+        self.chk4failure("-q -a -o stdout %s" % testtemplate1)
 
     def test_1030_basic_filewrite(self):
         """
@@ -232,7 +232,7 @@ class FlanTestCases(TestCase):
         if os.path.exists(testout):
             utils.wipe(testout)
         os.mkdir(testout)
-        self.chk4success("-n 1 %s %s" % (testtemplate1, testout))
+        self.chk4success("-q -n 1 %s %s" % (testtemplate1, testout))
         self.assertFileExists("%s/access.log" % testout)
 
     def test_1040_multiple_filewrite(self):
@@ -243,7 +243,7 @@ class FlanTestCases(TestCase):
         if os.path.exists(testout):
             utils.wipe(testout)
         os.mkdir(testout)
-        self.chk4success("-n 3 %s %s" % (testtemplate1, testout))
+        self.chk4success("-q -n 3 %s %s" % (testtemplate1, testout))
         self.assertFileExists("%s/access.log" % testout)
         self.assertFileExists("%s/access.log.1" % testout)
         self.assertFileExists("%s/access.log.2" % testout)
@@ -257,7 +257,7 @@ class FlanTestCases(TestCase):
         if os.path.exists(testout):
             utils.wipe(testout)
         os.mkdir(testout)
-        self.chk4success("-n 3 -g 1 %s %s" % (testtemplate1, testout))
+        self.chk4success("-q -n 3 -g 1 %s %s" % (testtemplate1, testout))
         self.assertFileExists("%s/access.log" % testout)
         self.assertFileNotExists("%s/access.log.gz" % testout)
         self.assertFileExists("%s/access.log.1" % testout)
@@ -276,7 +276,7 @@ class FlanTestCases(TestCase):
         if os.path.exists(testout):
             utils.wipe(testout)
         os.mkdir(testout)
-        self.chk4success("-n 3 -g 2 %s %s" % (testtemplate1, testout))
+        self.chk4success("-q -n 3 -g 2 %s %s" % (testtemplate1, testout))
         self.assertFileExists("%s/access.log" % testout)
         self.assertFileNotExists("%s/access.log.gz" % testout)
         self.assertFileNotExists("%s/access.log.1" % testout)
@@ -291,14 +291,14 @@ class FlanTestCases(TestCase):
         Count records streaming to stdout
         """
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
-        self.chk4countequals("-o stdout %s" % testtemplate1, 10000)
+        self.chk4countequals("-q -o stdout %s" % testtemplate1, 10000)
 
     def test_1070_basic_stdout_specifiedcount_small(self):
         """
         Count records streaming to stdout
         """
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
-        self.chk4countequals("-o stdout -r 17 %s" % testtemplate1, 17)
+        self.chk4countequals("-q -o stdout -r 17 %s" % testtemplate1, 17)
 
     @skip
     def test_1080_basic_stdout_specifiedcount_big_longrunning(self):
@@ -306,21 +306,21 @@ class FlanTestCases(TestCase):
         Count records streaming to stdout
         """
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
-        self.chk4countequals("-o stdout -r 987654 %s" % testtemplate1, 987654)
+        self.chk4countequals("-q -o stdout -r 987654 %s" % testtemplate1, 987654)
 
     def test_1090_basic_stdout_specifiedcount_waywaytoobig(self):
         """
         cant set -r that high! error
         """
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
-        self.chk4failure("-o stdout -r 9876543210 %s" % testtemplate1)
+        self.chk4failure("-q -o stdout -r 9876543210 %s" % testtemplate1)
 
     def test_1100_basic_stdout_data(self):
         """
         Correctly structured fake log entries streaming to stdout
         """
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
-        self.chk4validlog("-o stdout %s" % testtemplate1)
+        self.chk4validlog("-q -o stdout %s" % testtemplate1)
 
 
     def test_1110_bad_dates(self):
@@ -328,20 +328,20 @@ class FlanTestCases(TestCase):
         Check for badly formatted or specified -s and -e datetimes
         """
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
-        self.chk4success('-s "2019-01-01 00:00:00" -o stdout %s' % testtemplate1)
-        self.chk4success('-e "2029-01-01 00:00:00" -o stdout %s' % testtemplate1)
-        self.chk4failure('-e "2019-01-01 00:00:00" -o stdout %s' % testtemplate1)
-        self.chk4failure('-s "THIS IS NOT A DATETIME" -o stdout %s' % testtemplate1)
-        self.chk4failure('-e "THIS IS NOT A DATETIME EITHER" -o stdout %s' % testtemplate1)
-        self.chk4failure('-s "2019-01-01 00:00:00" -e "1999-01-01 00:00:00" -o stdout %s' % testtemplate1)
-        self.chk4failure('-s "2019-01-01 00:00:00" -e "2019-01-01 00:00:00" -o stdout %s' % testtemplate1)
+        self.chk4success('-q -s "2019-01-01 00:00:00" -o stdout %s' % testtemplate1)
+        self.chk4success('-q -e "2029-01-01 00:00:00" -o stdout %s' % testtemplate1)
+        self.chk4failure('-q -e "2019-01-01 00:00:00" -o stdout %s' % testtemplate1)
+        self.chk4failure('-q -s "THIS IS NOT A DATETIME" -o stdout %s' % testtemplate1)
+        self.chk4failure('-q -e "THIS IS NOT A DATETIME EITHER" -o stdout %s' % testtemplate1)
+        self.chk4failure('-q -s "2019-01-01 00:00:00" -e "1999-01-01 00:00:00" -o stdout %s' % testtemplate1)
+        self.chk4failure('-q -s "2019-01-01 00:00:00" -e "2019-01-01 00:00:00" -o stdout %s' % testtemplate1)
 
     def test_1120_date_range_1(self):
         """
         Test -s and -e lower bound inclusive
         """
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
-        self.chk4datacondition('-s "2019-01-01 00:00:00" -e "2019-01-02 23:59:59" -o stdout %s' % testtemplate1,
+        self.chk4datacondition('-q -s "2019-01-01 00:00:00" -e "2019-01-02 23:59:59" -o stdout %s' % testtemplate1,
                                "_ts", "after", '2018-12-31 23:59:59', startonline=None, endonline=None, status='pass')
 
     def test_1120_date_range_2(self):
@@ -349,7 +349,7 @@ class FlanTestCases(TestCase):
         Test -s and -e upper bound inclusive
         """
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
-        self.chk4datacondition('-s "2019-01-01 00:00:00" -e "2019-01-02 23:59:59" -o stdout %s' % testtemplate1,
+        self.chk4datacondition('-q -s "2019-01-01 00:00:00" -e "2019-01-02 23:59:59" -o stdout %s' % testtemplate1,
                                "_ts", "before", '2019-01-03 00:00:00', startonline=None, endonline=None, status='pass')
 
     def test_1120_date_range_3(self):
@@ -357,7 +357,7 @@ class FlanTestCases(TestCase):
         Test -s and -e lower bound exclusive
         """
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
-        self.chk4datacondition('-s "2019-01-01 00:00:00" -e "2019-01-02 23:59:59" -o stdout %s' % testtemplate1,
+        self.chk4datacondition('-q -s "2019-01-01 00:00:00" -e "2019-01-02 23:59:59" -o stdout %s' % testtemplate1,
                                "_ts", "before", '2018-12-31 23:59:59', startonline=None, endonline=None, status='fail')
 
     def test_1120_date_range_4(self):
@@ -365,7 +365,7 @@ class FlanTestCases(TestCase):
         Test -s and -e upper bound exclusive
         """
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
-        self.chk4datacondition('-s "2019-01-01 00:00:00" -e "2019-01-02 23:59:59" -o stdout %s' % testtemplate1,
+        self.chk4datacondition('-q -s "2019-01-01 00:00:00" -e "2019-01-02 23:59:59" -o stdout %s' % testtemplate1,
                                "_ts", "after", '2019-01-03 00:00:00', startonline=None, endonline=None, status='fail')
 
     def test_1120_date_range_5(self):
@@ -373,7 +373,7 @@ class FlanTestCases(TestCase):
         Test -s and -e lower bound inclusive boundary condition
         """
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
-        passed = self.chk4datacondition('-s "2019-01-01 00:00:00" -e "2019-01-02 23:59:59" -o stdout %s' % testtemplate1,
+        passed = self.chk4datacondition('-q -s "2019-01-01 00:00:00" -e "2019-01-02 23:59:59" -o stdout %s' % testtemplate1,
                                "_ts", "after", "2019-01-02 22:00:00", startonline=None, endonline=None, status='pass', scope='any')
         self.assertTrue(passed is not None)
 
@@ -382,7 +382,7 @@ class FlanTestCases(TestCase):
         Test -s and -e upper bound inclusive boundary condition
         """
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
-        passed = self.chk4datacondition('-s "2019-01-01 00:00:00" -e "2019-01-02 23:59:59" -o stdout %s' % testtemplate1,
+        passed = self.chk4datacondition('-q -s "2019-01-01 00:00:00" -e "2019-01-02 23:59:59" -o stdout %s' % testtemplate1,
                                "_ts", "before", '2019-01-01 02:00:00', startonline=None, endonline=None, status='pass', scope='any')
         self.assertTrue(passed is not None)
 
@@ -392,10 +392,10 @@ class FlanTestCases(TestCase):
         Then ensure no other IP pattern other than 188.143.232.[0-255] appears
         """
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
-        self.chk4datacondition('-f "188.143.232.240" -o stdout %s' % testtemplate1,
+        self.chk4datacondition('-q -f "188.143.232.240" -o stdout %s' % testtemplate1,
                                "remote_addr", "like", "^188.143.232.(?<!\d)(?:[1-9]?\d|1\d\d|2(?:[0-4]\d|5[0-5]))(?!\d)",
                                startonline=None, endonline=None)
-        self.chk4datacondition('-f "188.143.232.240" -o stdout %s' % testtemplate1,
+        self.chk4datacondition('-q -f "188.143.232.240" -o stdout %s' % testtemplate1,
                                "remote_addr", "notlike", "^(?!188.143.232.(?<!\d)(?:[1-9]?\d|1\d\d|2(?:[0-4]\d|5[0-5]))(?!\d)).*$",
                                startonline=None, endonline=None)
 
@@ -407,9 +407,9 @@ class FlanTestCases(TestCase):
         if os.path.isfile(testreplay):
             os.unlink(testreplay)
         self.assertFileNotExists(testreplay)
-        self.chk4success("-y -o stdout %s" % testtemplate1)
+        self.chk4success("-q -y -o stdout %s" % testtemplate1)
         self.assertFileExists(testreplay)
-        self.chk4success("-y -o stdout %s" % testtemplate1)
+        self.chk4success("-q -y -o stdout %s" % testtemplate1)
         self.assertFileExists(testreplay)
 
 
@@ -418,10 +418,10 @@ class FlanTestCases(TestCase):
         Test --nouatag flag
         """
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
-        self.chk4datacondition('-o stdout %s' % testtemplate1,
+        self.chk4datacondition('-q -o stdout %s' % testtemplate1,
                                "http_user_agent", "like", "(Flan/+\d.+\d.+\d. \(https://bret\.guru\/flan\))$",
                                startonline=None, endonline=None)
-        self.chk4datacondition('--nouatag -o stdout %s' % testtemplate1,
+        self.chk4datacondition('-q --nouatag -o stdout %s' % testtemplate1,
                                "http_user_agent", "notlike", "(Flan/+\d.+\d.+\d. \(https://bret\.guru\/flan\))$",
                                startonline=None, endonline=None)
 
@@ -430,16 +430,16 @@ class FlanTestCases(TestCase):
         Test a couple of -l flag settings
         """
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
-        self.chk4countequals('-r 3 -l CRLF -o stdout %s' % testtemplate1, countexpected=3, linedelimiter="\r\n")
-        self.chk4countequals('-r 5 -l CR -o stdout %s' % testtemplate1, countexpected=5, linedelimiter="\r")
-        self.chk4countequals('-r 7 -l LF -o stdout %s' % testtemplate1, countexpected=7, linedelimiter="\n")
+        self.chk4countequals('-q -r 3 -l CRLF -o stdout %s' % testtemplate1, countexpected=3, linedelimiter="\r\n")
+        self.chk4countequals('-q -r 5 -l CR -o stdout %s' % testtemplate1, countexpected=5, linedelimiter="\r")
+        self.chk4countequals('-q -r 7 -l LF -o stdout %s' % testtemplate1, countexpected=7, linedelimiter="\n")
 
     def test_1200_session_preservation(self):
         """
         Session preservation test
         """
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
-        matches = self.chk4datacondition('-p -o stdout %s' % testtemplate1,
+        matches = self.chk4datacondition('-q -p -o stdout %s' % testtemplate1,
                                "remote_addr", "like", "^75.24.111.(?<!\d)(?:[1-9]?\d|1\d\d|2(?:[0-4]\d|5[0-5]))(?!\d)",
                                startonline=None, endonline=None, status='pass', scope='any')
         rows = [k for k, v in matches.items()]
@@ -459,7 +459,7 @@ class FlanTestCases(TestCase):
         IP mapping test
         """
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
-        matches = self.chk4datacondition('-o stdout -m onetoone %s' % testtemplate1,
+        matches = self.chk4datacondition('-q -o stdout -m onetoone %s' % testtemplate1,
                                "remote_addr", "like", "^75.24.111.(?<!\d)(?:[1-9]?\d|1\d\d|2(?:[0-4]\d|5[0-5]))(?!\d)",
                                startonline=None, endonline=None, status='pass', scope='any')
         lines = [v for k, v in matches.items()]
@@ -474,7 +474,7 @@ class FlanTestCases(TestCase):
         IP mapping test
         """
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
-        matches = self.chk4datacondition('-o stdout -m onetomany %s' % testtemplate1,
+        matches = self.chk4datacondition('-q -o stdout -m onetomany %s' % testtemplate1,
                                          "remote_addr", "like", "^75.24.111.(?<!\d)(?:[1-9]?\d|1\d\d|2(?:[0-4]\d|5[0-5]))(?!\d)",
                                          startonline=None, endonline=None, status='pass', scope='any')
         lines = [v for k, v in matches.items()]
@@ -506,7 +506,7 @@ class FlanTestCases(TestCase):
                 os.system("kafka-server-start -daemon %s" % os.path.join(kafkahome, "server.properties"))
                 sleep(10)
                 # test
-                self.chk4success("-o kafka %s" % testtemplate1)
+                self.chk4success("-q -o kafka %s" % testtemplate1)
             else:
                 self.assertTrue(isenabled)  # this line will always fail, as intended here
             if not wasenabled:
@@ -537,7 +537,7 @@ class FlanTestCases(TestCase):
                 # start splunk
                 os.system("%s start" % os.path.join(splunkhome, "splunk"))
                 # test
-                self.chk4success("-o splunk %s" % testtemplate1)
+                self.chk4success("-q -o splunk %s" % testtemplate1)
             else:
                 self.assertTrue(isenabled)  # this line will always fail, as intended here
             if not wasenabled:
