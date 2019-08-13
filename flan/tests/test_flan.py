@@ -549,7 +549,35 @@ class FlanTestCases(TestCase):
             os.system("%s stop" % os.path.join(splunkhome, "splunk"))
             utils.setyaml("splunk", "export", "loginfo", False)
 
-
+    def test_1250_splunk_import(self):
+        """
+        Splunk import test
+        """
+        try:
+            wasenabled = False
+            isenabled = utils.getyaml("splunk", "import", "enabled")
+            if isenabled:
+                wasenabled = True
+            else:
+                isenabled = utils.setyaml("splunk", "import", "enabled", True)
+            if isenabled:
+                utils.setyaml("splunk", "import", "loginfo", True)
+                # stop splunk if running
+                os.system("%s stop" % os.path.join(splunkhome, "splunk"))
+                # start splunk
+                os.system("%s start" % os.path.join(splunkhome, "splunk"))
+                # test
+                self.chk4success("-q -i splunk -o stdout -s \"2001-01-01 00:00:00\"")
+            else:
+                self.assertTrue(isenabled)  # this line will always fail, as intended here
+            if not wasenabled:
+                isenabled = utils.setyaml("splunk", "import", "enabled", False)
+                if isenabled:
+                    self.assertFalse(isenabled)  # this line will always fail, as intended here
+        finally:
+            # stop splunk
+            os.system("%s stop" % os.path.join(splunkhome, "splunk"))
+            utils.setyaml("splunk", "import", "loginfo", False)
     #
     # tear down
     #

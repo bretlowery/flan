@@ -520,9 +520,9 @@ class MetaManager:
         self.importer = importer(self)
         if not options.quiet:
             if options.replay:
-                info("%d lines read from %s." % (len(self.importer.contents), options.templatelogfiles.strip()))
-            else:
                 info("%d lines read from replay log." % (len(self.importer.contents)))
+            else:
+                info("%d lines read from %s." % (len(self.importer.contents), self.importer.name))
 
         #
         # handle arg 1: verify output location
@@ -1142,7 +1142,9 @@ def interactiveMode():
     # command-line parsing
     argz = argparse.ArgumentParser(usage="flan [options] templatelogfiles [outputdir]",
                                    description="Create one or more 'fake' Apache or Nginx access.log(.#) file(s) from a single real-world example access.log file.")
-    argz.add_argument("templatelogfiles")
+    argz.add_argument("templatelogfiles",
+                      nargs='?',
+                      default=None)
     argz.add_argument("outputdir",
                       nargs='?',
                       default=None)

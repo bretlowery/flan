@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## v0.0.32 ".../Mehldau Quartet"
+Support Splunk as an alternative input source to files
+
+
 ## v0.0.31 ".../Mehldau"
 Performance enhancements and bug fixes
 
