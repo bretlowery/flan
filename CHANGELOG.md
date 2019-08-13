@@ -1,8 +1,12 @@
 # CHANGELOG
 
+## v0.0.31 ".../Mehldau"
+Performance enhancements and bug fixes
+
+
 ## v0.0.30 "Selected Recordings :rarum IX"
 Refactored "Integrations" into separate Import and Export code and configs
-Changed -i parameter to -f to repurpose -i for something else in the next version
+Changed -i parameter to -f to repurpose -i for something else in a later version
 
 
 ## v0.0.29 "One Quiet Night"
