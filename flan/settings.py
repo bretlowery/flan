@@ -8,7 +8,7 @@ EXPORTS = ["none", "stdout", "kafka", "splunk", "stompmq", "fluentd"]
 
 R_MAX = 100000000
 R_DEFAULT_NOSTREAMING = 10000
-R_DEFAULT_STREAMING = 10000000
+R_DEFAULT_STREAMING = 100000000
 
 REPLAY_LOG_FILE = os.path.join(os.path.dirname(__file__), 'flan.replay')
 SERVICE_CONFIG_FILE = os.path.join(os.path.dirname(__file__), 'config/flan.config.yaml')
