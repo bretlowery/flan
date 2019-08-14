@@ -24,4 +24,3 @@ splunk:
     querytimeout: 360
     scheme: https
     time_local_splunk_field_name: timestamp
-

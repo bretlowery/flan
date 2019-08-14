@@ -6,3 +6,4 @@ kafka:
     logerrors: true
     loginfo: false
     topic_must_exist: false
+
