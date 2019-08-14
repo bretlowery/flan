@@ -1,10 +1,12 @@
 from flanimport import FlanImport, timeout_after
 from datetime import datetime
+import io
 from time import sleep
+from settings import R_MAX
 try:
-    from flan import error
+    from flan import error, info
 except:
-    from flan.flan import error
+    from flan.flan import error, info
     pass
 
 try:
@@ -12,6 +14,29 @@ try:
     import splunklib.results as results
 except:
     pass
+
+# improves Splunk streaming performance back by 10X+ !!!
+class FlanStreamBuffer(io.RawIOBase):
+
+    def __init__(self, responsereader):
+        self.responseReader = responsereader
+
+    def readable(self):
+        return True
+
+    def close(self):
+        self.responseReader.close()
+
+    def read(self, n):
+        return self.responseReader.read(n)
+
+    def readinto(self, b):
+        sz = len(b)
+        data = self.responseReader.read(sz)
+        for idx, ch in enumerate(data):
+            b[idx] = ch
+
+        return len(data)
 
 
 class Splunk(FlanImport):
@@ -30,7 +55,6 @@ class Splunk(FlanImport):
         return rtn
 
     def _load(self, meta):
-        splunkresults = None
         try:
             self.service = client.connect(
                     scheme=self.config["scheme"],
@@ -57,21 +81,22 @@ class Splunk(FlanImport):
                 timeout = 60 if timeout < 60 else timeout
             else:
                 timeout = 60
-            splunkresults = self.service.jobs.oneshot(splunkquery, timeout=timeout)
+            if not meta.quiet:
+                info('Issuing import query to Splunk instance at %s://%s:%d as user %s (timeout=%d secs)...' %
+                     (self.config["scheme"], self.config["host"], self.config["port"], self.config["username"], timeout))
+            kwargs_export = {"count": 0, "maxEvents": R_MAX}
+            splunkreader = self.service.jobs.export(splunkquery, **kwargs_export)
+            totread = 0
+            for logentry in results.ResultsReader(io.BufferedReader(FlanStreamBuffer(splunkreader))):
+                if isinstance(logentry, dict):
+                    self.contents.append(logentry["_raw"])
+                    totread += 1
+                    if not meta.quiet:
+                        if totread % 100 == 0:
+                            info("Imported %d Splunk log entries..." % totread)
         except Exception as e:
-            error("Flan import error when trying to read from Splunk: %s" % str(e))
-            pass
-        if not splunkresults:
-            error("Flan import timed out before receiving a response from Splunk.")
-        http_status_code = 0
-        http_reason = "none"
-        try:
-            http_status_code = splunkresults._response.status
-            http_reason = splunkresults._response.reason
-        except Exception as e:
-            error("Flan received an invalid response from Splunk: %s" % str(e))
-        if http_status_code != 200:
-            error("Flan received a %d response from Splunk: %s" % (http_status_code, http_reason))
-        for result in results.ResultsReader(splunkresults):
-            self.contents.append(result["_raw"])
+            error("Flan import error when trying to import from Splunk: %s" % str(e))
+        if not meta.quiet:
+            info("Import complete; %d entries imported" % len(self.contents))
         return self.contents
+
