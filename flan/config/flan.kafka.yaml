@@ -1,8 +1,8 @@
 kafka:
-redacted
+  export:
     bootstrap.servers: localhost:9092
-redacted
-redacted
-redacted
-redacted
+    enabled: true
+    haltonerror: true
+    logerrors: true
+    loginfo: false
     topic_must_exist: false

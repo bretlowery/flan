@@ -1,6 +1,6 @@
 files:
-redacted
-redacted
-redacted
-redacted
-redacted
+  import:
+    enabled: true
+    haltonerror: true
+    logerrors: true
+    loginfo: false

@@ -1,17 +1,17 @@
 stomp:
-  redacted
+    export:
         enabled: True
         loginfo: False
         logerrors: True
         haltonerror: True
-    redacted
+        host: localhost
         port:  61613
         ssl_ca_certs: none
         ssl_cert_file: none
         ssl_cert_validator: none
         ssl_key_file: none
         ssl_version: none
-    redacted username
-    redacted password
+        username: username
+        password: password
         destination: /queue/flan
         id: 1

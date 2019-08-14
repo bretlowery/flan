@@ -1,11 +1,11 @@
 fluentd:
-  redacted
+    export:
         enabled: False
         loginfo: True
         logerrors: True
         haltonerror: True
         app: appname
-    redacted
-    redacted
+        host: localhost
+        port: 8089
         nanosecond_precision: False
         topic: flan

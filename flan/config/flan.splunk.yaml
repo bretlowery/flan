@@ -1,0 +1,27 @@
+splunk:
+  export:
+    enabled: true
+    haltonerror: true
+    host: localhost
+    index: flan
+    logerrors: true
+    loginfo: false
+    username:
+    password:
+    port: 8089
+    scheme: https
+  import:
+    enabled: true
+    haltonerror: true
+    host: localhost
+    index: flan
+    logerrors: true
+    loginfo: false
+    username:
+    password:
+    port: 8089
+    querycondition: none
+    querytimeout: 360
+    scheme: https
+    time_local_splunk_field_name: timestamp
+
