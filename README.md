@@ -143,6 +143,12 @@ Flan is developed and tested on Python 3.7 (as of July 2019). It's untested on o
 
 ### Installation
 
+##### FROM PIP
+
+` pip install flan`
+
+##### FROM SOURCE
+
 1. Download and extract all *.py files, *requirements.txt files, and (optionally) user-agents.json to a installation directory of your choice. You don't need the tests folder or its contents if you are not running unit tests. This exercise is left to the reader.
 
 2. (Optional) Set up a Python 3.7 virtualenv and activate it. This exercise is left to the reader.
