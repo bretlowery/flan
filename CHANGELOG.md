@@ -1,7 +1,12 @@
 ###CHANGELOG
 
+#### v0.0.35 "Orchestrion"
+Export to AWS SQS
+
+
 #### v0.0.34 "Tokyo Day Trip"
 Updated readme for pip distro
+
 
 #### v0.0.33 "Day Trip"
 100X+ speed improvement when importing from Splunk

@@ -31,6 +31,7 @@ FLAN is a Python 3.x utility that creates one or more fake Apache or NGINX acces
   * Kafka (text, JSON or Avro)<br>
   * ActiveMQ Artemis, Amazon MQ, RabbitMQ, Apollo, or any other STOMP 1.x-compliant queueing system (text or JSON)<br>
   * FluentD (JSON)
+  * AWS SQS (Simple Queue Services)
 
 --------------
 ### Background
