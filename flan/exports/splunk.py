@@ -14,25 +14,25 @@ class Splunk(FlanExport):
     def prepare(self):
         try:
             self.service = client.connect(
-                    scheme=self.config["scheme"],
-                    host=self.config["host"],
-                    port=self.config["port"],
-                    username=self.config["username"],
-                    password=self.config["password"])
-            self.index = self.service.indexes[self.config["index"]]
+                    scheme=self._getsetting("scheme"),
+                    host=self._getsetting("host"),
+                    port=self._getsetting("port"),
+                    username=self._getsetting("username"),
+                    password=self._getsetting("password"))
+            self.index = self.service.indexes[self._getsetting("index")]
             self.socket = self.index.attach(
                     sourcetype='Flan/%s' % self.version,
                     host=socket.getfqdn())
         except Exception as e:
             self.logerr('Flan->%s connection to %s:%s as user %s failed: %s' %
-                          (self.name, self.config["host"], self.config["port"], self.config["username"], str(e)))
+                          (self.name, self._getsetting("host"), self._getsetting("port"), self._getsetting("username"), str(e)))
             os._exit(1)
 
     @timeout_after(10)
     def send(self, data):
         try:
             self.socket.send(data.encode('utf-8'))
-            self.loginfo('Flan->%s %s [%s]' % (self.name, "%s:%s" % (self.config["host"], self.config["port"]), self.config["index"]))
+            self.loginfo('Flan->%s %s [%s]' % (self.name, "%s:%s" % (self._getsetting("host"), self._getsetting("port")), self._getsetting("index")))
         except Exception as e:
             self.logerr('Flan->%s delivery failed: %s' % (self.name, str(e)))
             pass

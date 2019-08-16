@@ -34,25 +34,25 @@ class StompMQ(FlanExport):
     @timeout_after(10)
     def prepare(self):
         try:
-            self.mq = stomp.Connection(host_and_ports='tcp://%s:%d' % (self.config['host'], self.config['port']),
-                                    ssl_ca_certs=self.config['ssl_ca_certs'],
-                                    ssl_cert_file=self.config['ssl_cert_file'],
-                                    ssl_cert_validator=self.config['ssl_cert_validator'],
-                                    ssl_key_file=self.config['ssl_key_file'],
-                                    ssl_version=self.config['ssl_version'])
+            self.mq = stomp.Connection(host_and_ports='tcp://%s:%d' % (self._getsetting('host'), self._getsetting('port')),
+                                    ssl_ca_certs=self._getsetting('ssl_ca_certs', erroronnone=False, defaultvalue=None),
+                                    ssl_cert_file=self._getsetting('ssl_cert_file', erroronnone=False, defaultvalue=None),
+                                    ssl_cert_validator=self._getsetting('ssl_cert_validator', erroronnone=False, defaultvalue=None),
+                                    ssl_key_file=self._getsetting('ssl_key_file', erroronnone=False, defaultvalue=None),
+                                    ssl_version=self._getsetting('ssl_version', erroronnone=False, defaultvalue=None))
             self.mq.set_listener('flan_%s_mqlistener' % self.version, MQCallback(flanproducer=self))
             self.mq.start()
-            self.mq.connect(self.config['username'],self.config['password'], wait=True)
-            self.mq.subscribe(destination=self.config['destination'], id=str(self.config['id']), ack='auto')
+            self.mq.connect(self._getsetting('username'),self._getsetting('password'), wait=True)
+            self.mq.subscribe(destination=self._getsetting('destination'), id=str(self._getsetting('id')), ack='auto')
         except Exception as e:
             self.logerr('Flan->%s connection to %s:%s as user %s failed: %s' %
-                        (self.name, self.config["host"], self.config["port"], self.config['username'], str(e)))
+                        (self.name, self._getsetting("host"), self._getsetting("port"), self._getsetting('username'), str(e)))
             os._exit(1)
 
     @timeout_after(10)
     def send(self, data):
         try:
-            self.producer.mq.send(destination=self.config['destination'], body=data.encode('utf-8'), headers={'persistent': 'false'})
+            self.producer.mq.send(destination=self._getsetting('destination'), body=data.encode('utf-8'), headers={'persistent': 'false'})
         except Exception as e:
             self.logerr(str(e))
             pass

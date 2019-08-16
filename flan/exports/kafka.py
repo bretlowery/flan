@@ -41,12 +41,12 @@ class Kafka(FlanExport):
         try:
             if self.meta.outputstyle == "avro":
                 servers = {
-                    'bootstrap.servers': self.config["bootstrap.servers"],
-                    'schema.registry.url': self.config["avro.schema.registry.url"],
+                    'bootstrap.servers': self._getsetting("bootstrap.servers"),
+                    'schema.registry.url': self._getsetting("avro.schema.registry.url"),
                 }
                 self.producer = AvroProducer(servers, default_key_schema=AVRO_KEY_SCHEMA, default_value_schema=AVRO_VALUE_SCHEMA)
             else:
-                servers = {'bootstrap.servers': self.config["bootstrap.servers"]}
+                servers = {'bootstrap.servers': self._getsetting("bootstrap.servers")}
                 self.producer = Producer(servers)
         except Exception as e:
             self.logerr(str(e))

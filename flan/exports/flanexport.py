@@ -106,3 +106,18 @@ class FlanExport:
             if self.config['topic']:
                 topic = self.config['topic'].strip().translate(str.maketrans(string.punctuation, '_' * len(string.punctuation)))
         return topic[:255]
+
+    def _getsetting(self, name, erroronnone=True, checkenv=False, defaultvalue=None):
+        val = defaultvalue
+        try:
+            if checkenv:
+                val = os.environ[name.upper()]
+        except KeyError:
+            pass
+        if not val:
+            ln = name.lower()
+            if ln in self.config:
+                val = self.config[ln]
+        if not val and erroronnone:
+            self.logerr('Flan->%s config failed: no %s defined in the environment or passed to Flan.' % (name, self.name))
+        return val

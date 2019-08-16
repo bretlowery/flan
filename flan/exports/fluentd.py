@@ -20,13 +20,13 @@ class FluentD(FlanExport):
     def prepare(self):
         try:
             if "topic" in self.config:
-                self.topic = self.config["topic"]
+                self.topic = self._getsetting("topic")
             else:
                 self.topic = self.defaulttopic
-            self.sender = sender.FluentSender(self.config["app"], host=self.config["host"], port=self.config["port"])
+            self.sender = sender.FluentSender(self._getsetting("app"), host=self._getsetting("host"), port=self._getsetting("port"))
         except Exception as e:
             self.logerr('Flan->%s connection to %s:%s failed: %s' %
-                          (self.name, self.config["host"], self.config["port"], str(e)))
+                          (self.name, self._getsetting("host"), self._getsetting("port"), str(e)))
             os._exit(1)
 
     @timeout_after(10)
@@ -36,7 +36,7 @@ class FluentD(FlanExport):
             if json.load(dict):
                 cur_time = int(time.time())
                 self.sender.emit_with_time(self.topic, cur_time, dict)
-                self.loginfo('Flan->%s %s [%s]' % (self.name, "%s:%s" % (self.config["host"], self.config["port"]), self.config["topic"]))
+                self.loginfo('Flan->%s %s [%s]' % (self.name, "%s:%s" % (self._getsetting("host"), self._getsetting("port")), self._getsetting("topic")))
         except Exception as e:
             self.logerr('Flan->%s delivery failed: %s' % (self.name, str(e)))
             pass
