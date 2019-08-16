@@ -21,6 +21,7 @@ setup(
         'numpy>=1.16.4.0',
         'service>=0.6.0',
         'PyYAML>=5.1.2',
+        'boto>=2.49.0',
         'confluent_kafka>=1.1.0',
         'fluent-logger>=0.9.3',
         'pyspark>=2.4.3',

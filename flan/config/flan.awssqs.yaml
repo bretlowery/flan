@@ -1,0 +1,20 @@
+awssqs:
+    export:
+        enabled: False
+        loginfo: True
+        logerrors: True
+        haltonerror: True
+        aws_access_key_id:
+        aws_secret_access_key:
+        is_secure: True
+        region:
+        path:
+        port:
+        proxy:
+        proxy_port:
+        proxy_user:
+        proxy_pass:
+        security_token:
+        validate_certs:
+        profile_name:
+        queue:

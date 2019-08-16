@@ -1,10 +1,10 @@
 import os
 import resource
 
-__VERSION__ = "0.0.34"
+__VERSION__ = "0.0.35"
 
 IMPORTS = ["files", "splunk"]
-EXPORTS = ["none", "stdout", "kafka", "splunk", "stompmq", "fluentd"]
+EXPORTS = ["none", "stdout", "awssqs", "fluentd", "kafka", "splunk", "stompmq"]
 
 R_MAX = 100000000
 R_DEFAULT_NOSTREAMING = 10000
