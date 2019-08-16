@@ -40,10 +40,8 @@ class FlanIntegration:
         self.name = name
         self.meta = meta
         self.config = None
-        self.loglevel = "info" if istruthy(self.config["loginfo"]) \
-            else "errors" if istruthy(self.config["logerrors"]) \
-            else "none"
-        self.haltonerror = istruthy(self.config["haltonerror"])
+        self.loglevel = None
+        self.haltonerror = None
         self.version = settings.__VERSION__
 
     def logerr(self, err):
@@ -57,6 +55,10 @@ class FlanIntegration:
         if self.loglevel == "info":
             info(msg)
         return
+
+    @staticmethod
+    def istruthy(val):
+        return istruthy(val)
 
     def _getsetting(self, name, erroronnone=True, checkenv=False, defaultvalue=None):
         val = defaultvalue

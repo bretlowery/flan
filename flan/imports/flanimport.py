@@ -23,6 +23,10 @@ class FlanImport(FlanIntegration):
     def __init__(self, name, meta, config):
         super().__init__(name, meta, config)
         self.config = config["import"]
+        self.loglevel = "info" if self.istruthy(self.config["loginfo"]) \
+            else "errors" if self.istruthy(self.config["logerrors"]) \
+            else "none"
+        self.haltonerror = self.istruthy(self.config["haltonerror"])
         self.contents = []
         self.templatelogfiles = None
         self.usereplaylog = True if meta.replay and self.replaylogfile_exists else False

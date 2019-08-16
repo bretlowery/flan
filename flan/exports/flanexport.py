@@ -1,9 +1,7 @@
 from abc import ABCMeta, abstractmethod
 try:
-    from flan import istruthy
     from flanintegration import FlanIntegration, _timeoput, timeout_after
 except:
-    from flan.flan import istruthy
     from flan.flanintegration import FlanIntegration, _timeoput, timeout_after
     pass
 import socket
@@ -28,8 +26,12 @@ class FlanExport(FlanIntegration):
     def __init__(self, name, meta, config):
         super().__init__(name, meta, config)
         self.config = config["export"]
+        self.loglevel = "info" if self.istruthy(self.config["loginfo"]) \
+            else "errors" if self.istruthy(self.config["logerrors"]) \
+            else "none"
+        self.haltonerror = self.istruthy(self.config["haltonerror"])
         if "topic_must_exist" in self.config:
-            self.topic_must_exist = istruthy(self.config["topic_must_exist"])
+            self.topic_must_exist = self.istruthy(self.config["topic_must_exist"])
         else:
             self.topic_must_exist = None
         self.prepare()
