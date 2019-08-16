@@ -3,7 +3,7 @@
 FLAN is a Python 3.x utility that creates one or more fake Apache or NGINX access.log files with fake entries based on the entries from a real-world access.log file that you provide it. The name itself is actually fake: it can generate logs for anything that consumes NCSA Combined Log Format, but FLNCSACLF seems like the name of a Wonka-brand prescription nasal spray rather than a properly ascetic Github project acronym, so.
 
 --------------
-### Real-World Use Cases 
+### Real-World Use Cases
 
 Testing & using Splunk's ML features on real data to see what real patterns it finds, but doing so in a restricted POC lab environment...
 
