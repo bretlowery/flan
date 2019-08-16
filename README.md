@@ -2,6 +2,15 @@
 
 FLAN is a Python 3.x utility that creates one or more fake Apache or NGINX access.log files with fake entries based on the entries from a real-world access.log file that you provide it. The name itself is actually fake: it can generate logs for anything that consumes NCSA Combined Log Format, but FLNCSACLF seems like the name of a Wonka-brand prescription nasal spray rather than a properly ascetic Github project acronym, so.
 
+--------------
+### Real Use Cases For Which Flan Is Used
+
+Testing & using Splunk's ML features on real data to see what real patterns it finds, but doing so in a restricted POC lab environment...
+
+Replicating access log data from a production Splunk index to a non-production security team restricted index...
+
+_ALL while ensuring user, IP, and location anonymity AND session semantics!_
+
 ----------------------
 ### Feature Highlights
 1. It's fast, with speed enhancements like replay ability;
@@ -49,11 +58,6 @@ and some other considerations.
 I looked for solutions but they lacked. 90% generated random data, including invalid IP addresses, or user agents that didn't match a real-world distribution of user-agents, which was important for my immediate needs (fraud research). The other 10% couldn't handle my special use cases, like preservation of partner/SEO bots and private network IPs. So, I created FLAN.
 
 FLAN generates up to 1K test access.log files of up to 1M records each, per run. On my Mac, it can generate 200K records in about 30 seconds in verbose mode with basic settings so it's way way fast on any ol' EC2 or GCE server including the free tier stuff.
-
---------------
-### But What's A Real Use Case For This Thing?
-
-Need to test Splunk's ML features on real data to see what real patterns it finds, but do it in a restricted POC lab environment while preserving user anonymity AND session semantics? Flan to the rescue!
 
 ---------------------------------------------------------------
 ### Flan generates log files semantically similar to production
@@ -256,17 +260,13 @@ Definitely:
 
 1. Integrations: various AWS services, Google Cloud Pub/Sub, Redis Pub/Sub, Apache Flume, Apache Pulsar, Apache Nifi... If you want an integration, ask, or submit a PR.
 
-2. Could always use tuning/refactoring. Ongoing effort. Warning: I tend to refactor every couple of releases.
-
 Possibly:
 
-1. Ability to specify the generation of specific CIDRs, ASNUM blocks, IP ranges, etc.;
+1. Ability to specify the generation of specific CIDRs, ASNUM blocks, IP ranges, etc. There are certain use cases for this;
 
-2. Ability to inject custom data into the user-agent field for downstream flagging/detection;
+2. Ability to inject custom data into the user-agent field, or alter the user agents in specific ways (map a user agent to another user agent) for downstream flagging/detection; 
 
-3. Support additional (and, for some use cases, better) ways to obfuscate IPs that make sense and are relatively fast;
-
-4. Support other time distributions for specific use cases. Examples: heavy-tailed Poisson to model unlikely events/DDoS, discrete/degenerate distributions to emulate API/RESTful activity, etc. For considerations, see: 
+3. Support other time distributions for specific use cases. Examples: heavy-tailed Poisson to model unlikely events/DDoS, discrete/degenerate distributions to emulate API/RESTful activity, etc. For considerations, see: 
 <br/>https://en.wikipedia.org/wiki/Web_traffic 
 <br/>https://www.nngroup.com/articles/traffic-log-patterns
 <br/>https://en.wikipedia.org/wiki/Traffic_generation_model
