@@ -6,10 +6,10 @@ splunk:
     index: flan
     logerrors: true
     loginfo: false
-    username:
-    password:
+    password: lylemays
     port: 8089
     scheme: https
+    username: splunkadmin
   import:
     enabled: true
     haltonerror: true
@@ -17,10 +17,10 @@ splunk:
     index: flan
     logerrors: true
     loginfo: false
-    username:
-    password:
+    password: lylemays
     port: 8089
     querycondition: none
     querytimeout: 360
     scheme: https
     time_local_splunk_field_name: timestamp
+    username: splunkadmin

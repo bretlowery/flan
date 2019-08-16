@@ -9,3 +9,4 @@ fluentd:
         port: 8089
         nanosecond_precision: False
         topic: flan
+

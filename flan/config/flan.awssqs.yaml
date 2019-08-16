@@ -15,6 +15,6 @@ awssqs:
         proxy_user:
         proxy_pass:
         security_token:
-        validate_certs:
+        validate_certs: False
         profile_name:
         queue:
