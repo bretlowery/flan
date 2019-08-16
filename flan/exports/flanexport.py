@@ -1,8 +1,8 @@
 from abc import ABCMeta, abstractmethod
 try:
-    from flanintegration import FlanIntegration, _timeoput, timeout_after
+    from flanintegration import FlanIntegration, _timeout, timeout_after
 except:
-    from flan.flanintegration import FlanIntegration, _timeoput, timeout_after
+    from flan.flanintegration import FlanIntegration, _timeout, timeout_after
     pass
 import socket
 import string

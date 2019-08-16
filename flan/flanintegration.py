@@ -72,5 +72,5 @@ class FlanIntegration:
             if ln in self.config:
                 val = self.config[ln]
         if not val and erroronnone:
-            self.logerr('Flan->%s config failed: no %s defined in the environment or passed to Flan.' % (name, self.name))
+            self.logerr('Flan->%s config failed: no %s defined in the environment or passed to Flan.' % (self.name, name))
         return val

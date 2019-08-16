@@ -1,4 +1,4 @@
-from flanimport import FlanImport, timeout_after
+from flanimport import FlanImport
 from datetime import datetime
 import io
 from settings import R_MAX

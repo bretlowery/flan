@@ -9,6 +9,7 @@ import shutil
 import hashlib
 import yaml
 
+__FLAN__ = os.path.join(os.path.dirname(__file__), "../flan.py")
 
 class Utils:
 
@@ -61,9 +62,9 @@ class Utils:
     @staticmethod
     def execmd(parameters, returnstdout=False, returnstderr=False, linedelimiter="\r\n"):
         if parameters is list:
-            cmd = ['flan'] + parameters
+            cmd = ["python3", __FLAN__] + parameters
         else:
-            cmd = ['flan'] + shlex.split(parameters)  # preserves quoted strings post-split, in this case -s and -e parameter values
+            cmd = ["python3", __FLAN__] + shlex.split(parameters)  # preserves quoted strings post-split, in this case -s and -e parameter values
         results = subprocess.run(cmd, capture_output=True)
         out = results.stdout.decode('utf-8')
         errs = results.stderr.decode('utf-8')

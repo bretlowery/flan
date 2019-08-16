@@ -1140,7 +1140,7 @@ def make_flan(options, servicemode=False):
 
 def interactiveMode():
     # command-line parsing
-    argz = argparse.ArgumentParser(usage="flan [options] templatelogfiles [outputdir]",
+    argz = argparse.ArgumentParser(usage="flan [options] [templatelogfiles] [outputdir]",
                                    description="Create one or more 'fake' Apache or Nginx access.log(.#) file(s) from a single real-world example access.log file.")
     argz.add_argument("templatelogfiles",
                       nargs='?',
