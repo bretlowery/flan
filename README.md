@@ -136,6 +136,7 @@ Flan is developed and tested on Python 3.7 (as of July 2019). It's untested on o
    service <br>
    ua-parser <br>
    user-agents<br>
+>  boto (if using AWS integration)<br>
    confluent_kafka (if using Kafka integration)<br>
 >  fluent-logger (if using FluentD integration)<br>
    splunk-sdk (if using Splunk integration)<br>
