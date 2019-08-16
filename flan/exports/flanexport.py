@@ -1,41 +1,16 @@
 from abc import ABCMeta, abstractmethod
 try:
-    from flan import istruthy, error, info
+    from flan import istruthy
+    from flanintegration import FlanIntegration, _timeoput, timeout_after
 except:
-    from flan.flan import istruthy, error, info
+    from flan.flan import istruthy
+    from flan.flanintegration import FlanIntegration, _timeoput, timeout_after
     pass
-import settings
-import threading
-import _thread as thread
-import os
 import socket
 import string
 
 
-def _timeout(exportname):
-    error('Flan->%s exports timed out' % exportname)
-    thread.interrupt_main()  # raises KeyboardInterrupt
-
-
-def timeout_after(s):
-    """
-    Use as decorator to exit process if function takes longer than s seconds
-    """
-    def outer(fn):
-        def inner(*args, **kwargs):
-            x = fn
-            timer = threading.Timer(s, _timeout, args=[fn.__module__])
-            timer.start()
-            try:
-                result = fn(*args, **kwargs)
-            finally:
-                timer.cancel()
-            return result
-        return inner
-    return outer
-
-
-class FlanExport:
+class FlanExport(FlanIntegration):
     __metaclass__ = ABCMeta
 
     class FlanExportWriter:
@@ -51,14 +26,8 @@ class FlanExport:
             self.publisher.send(data)
 
     def __init__(self, name, meta, config):
-        self.name = name
-        self.meta = meta
+        super().__init__(name, meta, config)
         self.config = config["export"]
-        self.loglevel = "info" if istruthy(self.config["loginfo"]) \
-            else "errors" if istruthy(self.config["logerrors"]) \
-            else "none"
-        self.haltonerror = istruthy(self.config["haltonerror"])
-        self.version = settings.__VERSION__
         if "topic_must_exist" in self.config:
             self.topic_must_exist = istruthy(self.config["topic_must_exist"])
         else:
@@ -87,18 +56,6 @@ class FlanExport:
     def close(self):
         return
 
-    def logerr(self, err):
-        if self.loglevel == "errors" or self.haltonerror:
-            error('Flan->%s exports failed: %s' % (self.name, err))
-        if self.haltonerror:
-            os._exit(1)
-        return
-
-    def loginfo(self, msg):
-        if self.loglevel == "info":
-            info(msg)
-        return
-
     @property
     def defaulttopic(self):
         topic = 'Flan_%s-%s' % (self.version, socket.getfqdn().translate(str.maketrans(string.punctuation, '_' * len(string.punctuation))))
@@ -107,17 +64,3 @@ class FlanExport:
                 topic = self.config['topic'].strip().translate(str.maketrans(string.punctuation, '_' * len(string.punctuation)))
         return topic[:255]
 
-    def _getsetting(self, name, erroronnone=True, checkenv=False, defaultvalue=None):
-        val = defaultvalue
-        try:
-            if checkenv:
-                val = os.environ[name.upper()]
-        except KeyError:
-            pass
-        if not val:
-            ln = name.lower()
-            if ln in self.config:
-                val = self.config[ln]
-        if not val and erroronnone:
-            self.logerr('Flan->%s config failed: no %s defined in the environment or passed to Flan.' % (name, self.name))
-        return val

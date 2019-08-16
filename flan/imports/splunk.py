@@ -1,19 +1,14 @@
 from flanimport import FlanImport, timeout_after
 from datetime import datetime
 import io
-from time import sleep
 from settings import R_MAX
-try:
-    from flan import error, info
-except:
-    from flan.flan import error, info
-    pass
 
 try:
     import splunklib.client as client
     import splunklib.results as results
 except:
     pass
+
 
 # improves Splunk streaming performance back by 10X+ !!!
 class FlanStreamBuffer(io.RawIOBase):
@@ -82,7 +77,7 @@ class Splunk(FlanImport):
             else:
                 timeout = 60
             if not meta.quiet:
-                info('Issuing import query to Splunk instance at %s://%s:%d as user %s (timeout=%d secs)...' %
+                self.loginfo('Issuing import query to Splunk instance at %s://%s:%d as user %s (timeout=%d secs)...' %
                      (self.config["scheme"], self.config["host"], self.config["port"], self.config["username"], timeout))
             kwargs_export = {"count": 0, "maxEvents": R_MAX}
             splunkreader = self.service.jobs.export(splunkquery, **kwargs_export)
@@ -93,10 +88,10 @@ class Splunk(FlanImport):
                     totread += 1
                     if not meta.quiet:
                         if totread % 100 == 0:
-                            info("Imported %d Splunk log entries..." % totread)
+                            self.loginfo("Imported %d Splunk log entries..." % totread)
         except Exception as e:
-            error("Flan import error when trying to import from Splunk: %s" % str(e))
+            self.logerr("Flan import error when trying to import from Splunk: %s" % str(e))
         if not meta.quiet:
-            info("Import complete; %d entries imported" % len(self.contents))
+            self.loginfo("Import complete; %d entries imported" % len(self.contents))
         return self.contents
 

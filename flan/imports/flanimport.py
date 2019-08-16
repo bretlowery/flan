@@ -1,46 +1,27 @@
 from abc import ABCMeta, abstractmethod
+import os
 
 try:
-    from flan import istruthy, error, info
     from settings import REPLAY_LOG_FILE
+    from flanintegration import FlanIntegration
 except:
-    from flan.flan import istruthy, error, info
     from flan.settings import REPLAY_LOG_FILE
+    from flan.flanintegration import FlanIntegration
     pass
 
-import os
-import threading
-import _thread as thread
 
-
-def _timeout(exportname):
-    error('Flan->%s import timed out' % exportname)
-    thread.interrupt_main()  # raises KeyboardInterrupt
-
-
-def timeout_after(s):
-    """
-    Use as decorator to exit process if function takes longer than s seconds
-    """
-    def outer(fn):
-        def inner(*args, **kwargs):
-            x = fn
-            timer = threading.Timer(s, _timeout, args=[fn.__module__])
-            timer.start()
-            try:
-                result = fn(*args, **kwargs)
-            finally:
-                timer.cancel()
-            return result
-        return inner
-    return outer
-
-
-class FlanImport:
+class FlanImport(FlanIntegration):
     __metaclass__ = ABCMeta
 
+    @property
+    def replaylogfile_exists(self):
+        if os.path.exists(REPLAY_LOG_FILE):
+            return os.path.isfile(REPLAY_LOG_FILE)
+        else:
+            return False
+
     def __init__(self, name, meta, config):
-        self.name = name
+        super().__init__(name, meta, config)
         self.config = config["import"]
         self.contents = []
         self.templatelogfiles = None
@@ -48,14 +29,10 @@ class FlanImport:
         if not self.usereplaylog:
             self._load(meta)
             if not self.contents:
-                error("the template log data could not be read or imported from %s." % meta.inputsource)
+                self.logerr("the template log data could not be read or imported from %s." % meta.inputsource)
                 os._exit(1)
-        return
 
     @abstractmethod
     def _load(self, meta):
         return
 
-    @property
-    def replaylogfile_exists(self):
-        return os.path.exists(REPLAY_LOG_FILE)
