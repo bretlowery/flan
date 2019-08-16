@@ -2,15 +2,6 @@
 
 FLAN is a Python 3.x utility that creates one or more fake Apache or NGINX access.log files with fake entries based on the entries from a real-world access.log file that you provide it. The name itself is actually fake: it can generate logs for anything that consumes NCSA Combined Log Format, but FLNCSACLF seems like the name of a Wonka-brand prescription nasal spray rather than a properly ascetic Github project acronym, so.
 
---------------
-### Real-World Use Cases
-
-Testing & using Splunk's ML features on real data to see what real patterns it finds, but doing so in a restricted POC lab environment...
-
-Replicating access log data from a production Splunk index to a non-production security team restricted index...
-
-_ALL while ensuring user, IP, and location anonymity AND session semantics!_
-
 ----------------------
 ### Feature Highlights
 1. It's fast, with speed enhancements like replay ability;
@@ -43,6 +34,15 @@ _ALL while ensuring user, IP, and location anonymity AND session semantics!_
   * AWS SQS (Simple Queue Services)
 
 --------------
+### Real-World Use Cases
+
+Testing & using Splunk's ML features on real data to see what real patterns it finds, but doing so in a restricted POC lab environment...
+
+Replicating access log data from a production Splunk index to a non-production security team restricted index...
+
+_ALL while ensuring user, IP, and location anonymity AND session semantics!_
+
+--------------
 ### Background
 I needed a way to test some systems that consume access.log entries in an environment where:
 
@@ -60,7 +60,7 @@ I looked for solutions but they lacked. 90% generated random data, including inv
 FLAN generates up to 1K test access.log files of up to 1M records each, per run. On my Mac, it can generate 200K records in about 30 seconds in verbose mode with basic settings so it's way way fast on any ol' EC2 or GCE server including the free tier stuff.
 
 ---------------------------------------------------------------
-### Flan generates log files semantically similar to production
+### Flan generates log files semantically similar to YOUR production environment
 To ensure your fake logs look as semantically real as your production ones, it reads one or more "template" access.logs from a real production system that you provide (hereinafter referred to as the "template logs"). It doesn't matter how many records the template logs contain, but the longer it/they are, the more realistic your generated fake logs will be. If you do NOT specify session preservation with the -p flag (described below), you can specify the number of files and records to generate, and your template log(s) can be bigger or smaller than your generated log file(s). If you specify session preservation, your generated log files will contain the same number of records as the total number of records contained in your template log file(s).
 
 To provide more than one template log file, use wildcards; for example, "/var/logs/access.log*". Your template logs may be gzipped; if they have a ".gz" extension, FLAN will unzip them when it reads them. You can mix both non-zipped and gzipped files in your wildcard spec.
