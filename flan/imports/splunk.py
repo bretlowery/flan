@@ -1,4 +1,4 @@
-from flanimport import FlanImport
+from flanimport import FlanImport, FlanStreamBuffer
 from datetime import datetime
 import io
 from settings import R_MAX
@@ -8,30 +8,6 @@ try:
     import splunklib.results as results
 except:
     pass
-
-
-# improves Splunk streaming performance back by 10X+ !!!
-class FlanStreamBuffer(io.RawIOBase):
-
-    def __init__(self, responsereader):
-        self.responseReader = responsereader
-
-    def readable(self):
-        return True
-
-    def close(self):
-        self.responseReader.close()
-
-    def read(self, n):
-        return self.responseReader.read(n)
-
-    def readinto(self, b):
-        sz = len(b)
-        data = self.responseReader.read(sz)
-        for idx, ch in enumerate(data):
-            b[idx] = ch
-
-        return len(data)
 
 
 class Splunk(FlanImport):

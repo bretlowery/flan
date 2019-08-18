@@ -459,8 +459,17 @@ class FlanTestCases(TestCase):
         IP mapping test
         """
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
-        matches = self.chk4datacondition('-q -o stdout -m onetoone %s' % testtemplate1,
+        matches = self.chk4datacondition('-q -o stdout -m oto24 %s' % testtemplate1,
                                "remote_addr", "like", "^75.24.111.(?<!\d)(?:[1-9]?\d|1\d\d|2(?:[0-4]\d|5[0-5]))(?!\d)",
+                               startonline=None, endonline=None, status='pass', scope='any')
+        lines = [v for k, v in matches.items()]
+        ips = [line['remote_addr'] for line in lines]
+        distinctips = collections.Counter(ips).keys()
+        self.assertTrue(len(distinctips) == 1)
+        self.assertTrue(line['remote_addr'] == lines[0]['remote_addr'] for line in lines)
+        self.assertTrue(line['request'] in ['POST /a.html HTTP/1.0', 'POST /b.html HTTP/1.0', 'POST /c.html HTTP/1.0'] for line in lines)
+        matches = self.chk4datacondition('-q -o stdout -m oto16 %s' % testtemplate1,
+                               "remote_addr", "like", "^75.24.(?<!\d)(?:[1-9]?\d|1\d\d|2(?:[0-4]\d|5[0-5]))(?!\d).(?<!\d)(?:[1-9]?\d|1\d\d|2(?:[0-4]\d|5[0-5]))(?!\d)",
                                startonline=None, endonline=None, status='pass', scope='any')
         lines = [v for k, v in matches.items()]
         ips = [line['remote_addr'] for line in lines]
@@ -474,8 +483,16 @@ class FlanTestCases(TestCase):
         IP mapping test
         """
         utils.newtest(inspect.currentframe().f_code.co_name.upper())
-        matches = self.chk4datacondition('-q -o stdout -m onetomany %s' % testtemplate1,
+        matches = self.chk4datacondition('-q -o stdout -m otm24 %s' % testtemplate1,
                                          "remote_addr", "like", "^75.24.111.(?<!\d)(?:[1-9]?\d|1\d\d|2(?:[0-4]\d|5[0-5]))(?!\d)",
+                                         startonline=None, endonline=None, status='pass', scope='any')
+        lines = [v for k, v in matches.items()]
+        ips = [line['remote_addr'] for line in lines]
+        distinctips = collections.Counter(ips).keys()
+        self.assertTrue(len(distinctips) > 1)
+        self.assertTrue(line['request'] in ['POST /a.html HTTP/1.0', 'POST /b.html HTTP/1.0', 'POST /c.html HTTP/1.0'] for line in lines)
+        matches = self.chk4datacondition('-q -o stdout -m otm16 %s' % testtemplate1,
+                                         "remote_addr", "like", "^75.24.(?<!\d)(?:[1-9]?\d|1\d\d|2(?:[0-4]\d|5[0-5]))(?!\d).(?<!\d)(?:[1-9]?\d|1\d\d|2(?:[0-4]\d|5[0-5]))(?!\d)",
                                          startonline=None, endonline=None, status='pass', scope='any')
         lines = [v for k, v in matches.items()]
         ips = [line['remote_addr'] for line in lines]

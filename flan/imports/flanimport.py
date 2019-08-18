@@ -1,5 +1,6 @@
 from abc import ABCMeta, abstractmethod
 import os
+import io
 
 try:
     from settings import REPLAY_LOG_FILE
@@ -8,6 +9,29 @@ except:
     from flan.settings import REPLAY_LOG_FILE
     from flan.flanintegration import FlanIntegration
     pass
+
+
+class FlanStreamBuffer(io.RawIOBase):
+
+    def __init__(self, responsereader):
+        self.responseReader = responsereader
+
+    def readable(self):
+        return True
+
+    def close(self):
+        self.responseReader.close()
+
+    def read(self, n):
+        return self.responseReader.read(n)
+
+    def readinto(self, b):
+        sz = len(b)
+        data = self.responseReader.read(sz)
+        for idx, ch in enumerate(data):
+            b[idx] = ch
+
+        return len(data)
 
 
 class FlanImport(FlanIntegration):

@@ -456,14 +456,14 @@ class MetaManager:
 
         # -m
         if self.preserve_sessions:
-            self.ipmapping = self._onein(options.ipmapping, ["none", "onetoone"], "onetoone")
+            self.ipmapping = self._onein(options.ipmapping, ["none", "oto24", "oto16"], "oto24")
         else:
-            self.ipmapping = self._onein(options.ipmapping, ["none", "onetoone", "onetomany"], "onetomany")
+            self.ipmapping = self._onein(options.ipmapping, ["none", "oto24", "oto16", "otm24", "otm16" ], "otm24")
 
         # -p
         if options.preserve_sessions:
-            if self.ipmapping != "onetoone":
-                error("-p (session preservation) requires that '-m onetoone' be specified as well.")
+            if self.ipmapping not in ["oto24", "oto16"]:
+                error("-p (session preservation) requires that -m be specified as either 'oto24' or 'oto16'.")
 
         # -x
         regx = None
@@ -712,10 +712,13 @@ class DataManager:
             # o2m may generate multiple obfuscated IPs from the same IP during the same run
             # o2o always generates/returns the same obfuscated IP from a given input IP during the same run
             tries = 0
-            newip = IPMAP[ipkey] if meta.ipmapping == "onetoone" and ipkey in IPMAP.keys() else None
+            newip = IPMAP[ipkey] if meta.ipmapping in ["oto24", "oto16"] and ipkey in IPMAP.keys() else None
             while not newip:
                 if ipvXaddress.version == 4:
-                    newip = "%s.%s" % (ipkey.rsplit(".", 1)[0], str(random.randint(0, 255)))
+                    if meta.ipmapping[-2:] == "24":
+                        newip = "%s.%s" % (ipkey.rsplit(".", 1)[0], str(random.randint(0, 255)))
+                    elif meta.ipmapping[-2:] == "16":
+                        newip = "%s.%s.%s" % (ipkey.rsplit(".", 2)[0], str(random.randint(0, 255)), str(random.randint(0, 255)))
                 else:
                     newip = "%s:%s" % (ipkey.rsplit(":", 1)[0], ''.join(random.choice(string.digits + "abcdef") for i in range(4)))
                 # ensure obfuscation
@@ -731,7 +734,7 @@ class DataManager:
                     newip = None
                     pass
                 if newip:
-                    if meta.ipmapping == "onetoone":
+                    if meta.ipmapping[:3] == "oto":
                         if newip in IPMAP2.keys():
                             newip = None
                             tries += 1
@@ -1236,9 +1239,11 @@ def interactiveMode():
                       action="store",
                       dest="ipmapping",
                       default='onetomany',
-                      help='Obfuscation rule to use for IPs, one of: onetomany=map one IPv4 to up to 255 IPv4 /24 addresses or '
-                           'one IPv6 to up to 65536 IPv6 /116 addresses, onetoone=map one IPv4/IPv6 address to one IPv4/IPv6 address '
-                           'within the same /24 or /116 block, off=do not obfuscate IPs. Default=onetomany.' )
+                      help='Obfuscation rule to use for IPs, one of: otm24=map one IPv4 to up to 255 IPv4 /24 addresses or '
+                           'one IPv6 to up to 65536 IPv6 /116 addresses, otm16=map one IPv4 to up to 65535 IPv4 /16 addresses or '
+                           'one IPv6 to up to 65536 IPv6 /116 addresses, oto24=map one IPv4/IPv6 address to one IPv4/IPv6 address '
+                           'within the same /24 or /116 block, oto16=map one IPv4/IPv6 address to one IPv4/IPv6 address '
+                           'within the same /16 or /116 block, off=do not obfuscate IPs. Default=otm24.' )
     argz.add_argument("--meta",
                       action="store_true",
                       dest="meta",
@@ -1269,7 +1274,7 @@ def interactiveMode():
                       action="store_true",
                       dest="preserve_sessions",
                       help="If specified, preserve sessions (specifically, pathing order for a given IP/UA/user combo). "
-                           "'-m onetoone' must also be specified for this to work."
+                           "'-m oto24' must also be specified for this to work."
                            "If not specified (the default), do not preserve sessions.")
     argz.add_argument("--pace",
                       action="store_true",
@@ -1395,7 +1400,7 @@ class FlanService(Service):
                 inputformat=DEFAULT_FORMAT,
                 gzipindex=0,
                 ipfilter='',
-                ipmapping='onetomany',
+                ipmapping='otm24',
                 meta=False,
                 outputdir='',
                 outputformat=DEFAULT_FORMAT,
