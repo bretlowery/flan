@@ -1,7 +1,8 @@
 from flanimport import FlanImport, FlanStreamBuffer
 from datetime import datetime
 import io
-from settings import R_MAX
+
+from settings import T_MAX, R_MAX
 
 try:
     import splunklib.client as client
@@ -65,6 +66,8 @@ class Splunk(FlanImport):
                     if not meta.quiet:
                         if totread % 100 == 0:
                             self.loginfo("Imported %d Splunk log entries..." % totread)
+                    if totread > T_MAX:
+                        break
         except Exception as e:
             self.logerr("Flan import error when trying to import from Splunk: %s" % str(e))
         if not meta.quiet:

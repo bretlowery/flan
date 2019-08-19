@@ -6,6 +6,7 @@ __VERSION__ = "0.0.37"
 IMPORTS = ["files", "splunk"]
 EXPORTS = ["none", "stdout", "awssqs", "fluentd", "kafka", "splunk", "stompmq"]
 
+T_MAX = 1000000
 R_MAX = 100000000
 R_DEFAULT_NOSTREAMING = 10000
 R_DEFAULT_STREAMING = 100000000

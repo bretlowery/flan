@@ -1211,11 +1211,6 @@ def interactiveMode():
                       dest="inputformat",
                       default=DEFAULT_FORMAT,
                       help='Format of individual lines in the template log file(s) provided. Default=\'%s\'' % DEFAULT_FORMAT)
-    argz.add_argument("--nouatag",
-                      action="store_true",
-                      dest="excludeuatag",
-                      help="If specified, does not append the custom 'Flan/%s' tag to all of the user agents in the generated file(s). Default=append "
-                           "the tag to all UAFactory." % __VERSION__)
     argz.add_argument("-j",
                       action="store",
                       dest="period",
@@ -1257,7 +1252,12 @@ def interactiveMode():
                       type=int,
                       default=0,
                       help="Number of access.log(.#) file(s) to output. Default=1, min=1, max=1000. Example: '-n 4' creates access.log, "
-                           "access.log.1, access.log.2, and access.log.3 in the output directory." )
+                           "access.log.1, access.log.2, and access.log.3 in the output directory.")
+    argz.add_argument("--nouatag",
+                      action="store_true",
+                      dest="excludeuatag",
+                      help="If specified, does not append the custom 'Flan/%s' tag to all of the user agents in the generated file(s). Default=append "
+                           "the tag to all UAFactory." % __VERSION__)
     argz.add_argument("-o",
                       action="store",
                       dest="streamtarget",
@@ -1298,16 +1298,6 @@ def interactiveMode():
                            "Default=%d (nonstreaming) or %d (streaming), min=1, max=%d."
                            % (R_DEFAULT_NOSTREAMING, R_DEFAULT_STREAMING, R_MAX)
                       )
-    # argz.add_argument("--rps",
-    #                   action="store",
-    #                   type=int,
-    #                   dest="rps",
-    #                   default=0,
-    #                   help="If specified, defines a maximum records-per-second pace with which to write "
-    #                        "or stream records to either file or streaming output, and computes the -r value from this, "
-    #                        "ignoring any explicitly specified -r value. "
-    #                        "The actual pace may be less than this value in practice. "
-    #                        "Default=no pacing (write/stream as fast as possible)." )
     argz.add_argument("--squeeze",
                       action="store_true",
                       dest="squeeze",
