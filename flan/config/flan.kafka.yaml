@@ -1,8 +1,8 @@
 kafka:
   export:
+    bootstrap.servers: localhost:9092
     enabled: true
     haltonerror: true
     logerrors: true
     loginfo: false
-    bootstrap.servers: localhost:9092
     topic_must_exist: false
