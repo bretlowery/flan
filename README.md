@@ -40,7 +40,9 @@ Testing & using Splunk's ML features on real data to see what real patterns it f
 
 Replicating access log data from a production Splunk index to a non-production security team restricted index...
 
-_ALL while ensuring user, IP, and location anonymity AND session semantics!_
+Storing logs for future research needs...
+
+_ALL while ensuring user, IP, and location anonymity AND retaining session semantics!_
 
 --------------
 ### Background
