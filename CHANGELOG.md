@@ -30,7 +30,7 @@ Performance enhancements and bug fixes
 
 
 #### v0.0.30 "Selected Recordings :rarum IX"
-Refactored "Integrations" into separate Import and Export code and configs
+Refactored "Integrations" into separate Import and Export code and configs<br>
 Changed -i parameter to -f to repurpose -i for something else in a later version
 
 
@@ -67,8 +67,8 @@ Splunk and Kafka integrations
 
 
 #### v0.0.21 "Quartet"
-Kafka integration ALPHA
-Support JSON output
+Kafka integration ALPHA<br>
+Support JSON output<br>
 Replace -f with --inputformat & --outputformat
 
 
