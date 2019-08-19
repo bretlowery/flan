@@ -2,6 +2,7 @@
 
 #### v0.0.37 "What's It All About"
 Added additional IP obfuscation options to -m parameter
+Better memory utilization on template import
 
 
 #### v0.0.36 "Orchestrion"
