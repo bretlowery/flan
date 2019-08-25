@@ -1,10 +1,6 @@
-from flan.flan import main as flanmain
+from flan import main as flanmain
 
+flanmain()
 
-def main():
-   flanmain()
-
-
-if __name__ == "__main__":
-    main()
-
+if __name__ == '__main__':
+    flanmain()
